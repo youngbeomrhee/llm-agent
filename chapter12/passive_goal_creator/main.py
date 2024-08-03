@@ -48,7 +48,7 @@ def main():
     settings = Settings()
 
     parser = argparse.ArgumentParser(
-        description="PassiveGoalCreatorを利用して目標（タスク）のリストを生成します"
+        description="PassiveGoalCreatorを利用して目標のリストを生成します"
     )
     parser.add_argument("--task", type=str, required=True, help="実行するタスク")
     args = parser.parse_args()
