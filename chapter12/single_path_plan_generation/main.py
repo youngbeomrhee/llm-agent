@@ -13,8 +13,6 @@ from prompt_optimiser.main import OptimisedGoal, OptimisedGoals, PromptOptimiser
 
 
 class TaskExecutionState(BaseModel):
-    """タスク実行の状態を管理するクラス"""
-
     original_query: str = Field(..., description="ユーザーが最初に入力したクエリ")
     tasks: OptimisedGoals = Field(
         default_factory=lambda: OptimisedGoals(), description="実行するタスクのリスト"
@@ -53,11 +51,11 @@ class TaskExecutor:
                 (
                     "human",
                     f"次のタスクを実行し、詳細な回答を提供してください。\n\nタスク: {task.text}\n\n"
-                    f"要件:\n"
-                    f"1. 必要に応じて提供されたツールを使用してください。\n"
-                    f"2. 実行は徹底的かつ包括的に行ってください。\n"
-                    f"3. 可能な限り具体的な事実やデータを提供してください。\n"
-                    f"4. 発見した内容を明確に要約してください。\n",
+                    "要件:\n"
+                    "1. 必要に応じて提供されたツールを使用してください。\n"
+                    "2. 実行は徹底的かつ包括的に行ってください。\n"
+                    "3. 可能な限り具体的な事実やデータを提供してください。\n"
+                    "4. 発見した内容を明確に要約してください。\n",
                 )
             ]
         }
