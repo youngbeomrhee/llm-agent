@@ -1,4 +1,5 @@
-from typing import Any
+import operator
+from typing import Annotated, Any
 
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -13,55 +14,44 @@ from prompt_optimiser.main import OptimisedGoals, PromptOptimiser
 
 
 class Role(BaseModel):
-    """タスクに割り当てられる役割を表すクラス"""
-
     name: str = Field(..., description="役割の名前")
     description: str = Field(..., description="役割の詳細な説明")
-    key_skills: list[str] = Field(
-        ..., description="この役割に必要な主要なスキルやアトリビュート"
-    )
+    key_skills: list[str] = Field(..., description="この役割に必要な主要なスキルや属性")
 
 
 class Task(BaseModel):
-    """実行すべきタスクを表すクラス"""
-
     description: str = Field(..., description="タスクの説明")
     role: Role = Field(default=None, description="タスクに割り当てられた役割")
 
 
 class TasksWithRoles(BaseModel):
-    """役割が割り当てられたタスクのリストを表すクラス"""
-
     tasks: list[Task] = Field(..., description="役割が割り当てられたタスクのリスト")
 
 
 class AgentState(BaseModel):
-    """エージェントの状態を表すクラス"""
-
-    query: str = Field(..., description="ユーザーからの元のクエリ")
+    query: str = Field(..., description="ユーザーが最初に入力したクエリ")
     tasks: list[Task] = Field(
         default_factory=list, description="実行すべきタスクのリスト"
     )
-    results: dict[str, str] = Field(
-        default_factory=dict, description="完了したタスクの結果"
+    results: Annotated[list[str], operator.add] = Field(
+        default_factory=list, description="実行済みタスクの結果リスト"
     )
-    current_task_index: int = Field(
-        default=0, description="現在実行中のタスクのインデックス"
-    )
-    final_report: str = Field(default="", description="最終的に生成されたレポート")
+    current_task_index: int = Field(default=0, description="現在実行中のタスクの番号")
+    final_report: str = Field(default="", description="最終的な出力結果")
 
 
-class QueryDecomposer:
+class Planner:
     def __init__(self, llm: ChatOpenAI):
         self.passive_goal_creator = PassiveGoalCreator(llm=llm)
         self.prompt_optimiser = PromptOptimiser(llm=llm)
 
-    def run(self, query: str) -> OptimisedGoals:
+    def run(self, query: str) -> list[Task]:
         goals: Goals = self.passive_goal_creator.run(user_input=query)
-        return self.prompt_optimiser.run(goals=goals)
+        optimised_goals: OptimisedGoals = self.prompt_optimiser.run(goals=goals)
+        return [Task(description=goal.text) for goal in optimised_goals.goals]
 
 
-class RoleGenerator:
+class RoleAssigner:
     def __init__(self, llm: ChatOpenAI):
         self.llm = llm.with_structured_output(TasksWithRoles)
 
@@ -126,8 +116,14 @@ class Reporter:
     def __init__(self, llm: ChatOpenAI):
         self.llm = llm
 
-    def run(self, query: str, results: dict[str, str]) -> str:
-        prompt = ChatPromptTemplate.from_messages(
+    def run(self, original_query: str, results: list[str]) -> str:
+        prompt = self._create_aggregation_prompt()
+        chain = prompt | self.llm | StrOutputParser()
+        return chain.invoke(self._create_aggregation_input(original_query, results))
+
+    @staticmethod
+    def _create_aggregation_prompt() -> ChatPromptTemplate:
+        return ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
@@ -135,40 +131,38 @@ class Reporter:
                 ),
                 (
                     "human",
-                    """クエリ: {query}
-
-各タスクの結果:
-{results}
-
-上記の情報を基に、以下の指示に従って詳細なレポートを作成してください：
-
-1. クエリに直接答える形で開始し、重要なポイントを簡潔に要約してください。
-2. 各タスクの結果を統合し、一貫性のある物語を作成してください。
-3. データや具体的な例を用いて主張を裏付けてください。
-4. 異なる視点や対立する情報がある場合は、それらを公平に提示してください。
-5. 適切な場合は、結果から導き出される洞察や推奨事項を含めてください。
-6. レポートの最後に、主要な発見や結論を簡潔にまとめてください。
-
-レポートは論理的に構造化され、読みやすく、情報量が豊富であることを心がけてください。""",
+                    "タスク: 以下の情報に基づいて、包括的で一貫性のある回答を作成してください。\n"
+                    "要件:\n"
+                    "1. 提供されたすべての情報を統合し、よく構成された回答にしてください。\n"
+                    "2. 回答は元のクエリに直接応える形にしてください。\n"
+                    "3. 各情報の重要なポイントや発見を含めてください。\n"
+                    "4. 最後に結論や要約を提供してください。\n"
+                    "5. 回答は詳細でありながら簡潔にし、250〜300語程度を目指してください。\n"
+                    "6. 回答は日本語で行ってください。\n\n"
+                    "Original Query: {original_query}\n\n"
+                    "Information:\n{results}\n\n"
+                    "Synthesized Response:",
                 ),
             ]
         )
-        chain = prompt | self.llm | StrOutputParser()
-        return chain.invoke(
-            {
-                "query": query,
-                "results": "\n".join(
-                    [f"タスク: {k}\n結果: {v}\n" for k, v in results.items()]
-                ),
-            }
-        )
+
+    @staticmethod
+    def _create_aggregation_input(
+        original_query: str, results: list[str]
+    ) -> dict[str, Any]:
+        return {
+            "original_query": original_query,
+            "results": "\n\n".join(
+                f"Info {i+1}:\n{result}" for i, result in enumerate(results)
+            ),
+        }
 
 
 class RoleBasedCooperation:
     def __init__(self, llm: ChatOpenAI):
         self.llm = llm
-        self.query_decomposer = QueryDecomposer(llm=llm)
-        self.role_generator = RoleGenerator(llm=llm)
+        self.planner = Planner(llm=llm)
+        self.role_assigner = RoleAssigner(llm=llm)
         self.executor = Executor(llm=llm)
         self.reporter = Reporter(llm=llm)
         self.graph = self._create_graph()
@@ -184,11 +178,7 @@ class RoleBasedCooperation:
         workflow.set_entry_point("planner")
 
         workflow.add_edge("planner", "role_assigner")
-        workflow.add_conditional_edges(
-            "role_assigner",
-            lambda state: state.current_task_index < len(state.tasks),
-            {True: "executor", False: "reporter"},
-        )
+        workflow.add_edge("role_assigner", "executor")
         workflow.add_conditional_edges(
             "executor",
             lambda state: state.current_task_index < len(state.tasks),
@@ -200,21 +190,18 @@ class RoleBasedCooperation:
         return workflow.compile()
 
     def _plan_tasks(self, state: AgentState) -> dict[str, Any]:
-        optimised_goals = self.query_decomposer.run(state.query)
-        tasks = [Task(description=goal.text) for goal in optimised_goals.goals]
+        tasks = self.planner.run(state.query)
         return {"tasks": tasks}
 
     def _assign_roles(self, state: AgentState) -> dict[str, Any]:
-        tasks_with_roles = self.role_generator.run(state.tasks)
+        tasks_with_roles = self.role_assigner.run(state.tasks)
         return {"tasks": tasks_with_roles}
 
     def _execute_task(self, state: AgentState) -> dict[str, Any]:
         current_task = state.tasks[state.current_task_index]
         result = self.executor.run(current_task)
-        new_results = state.results.copy()
-        new_results[current_task.description] = result
         return {
-            "results": new_results,
+            "results": [result],
             "current_task_index": state.current_task_index + 1,
         }
 

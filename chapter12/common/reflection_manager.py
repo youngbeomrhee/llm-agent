@@ -28,7 +28,7 @@ class ReflectionJudgment(BaseModel):
 
 
 class Reflection(BaseModel):
-    id: str = Field(description="リフレクション内容に一意性を与えるためのIDE")
+    id: str = Field(description="リフレクション内容に一意性を与えるためのID")
     task: str = Field(description="ユーザーから与えられたタスクの内容")
     reflection: str = Field(
         description="このタスクに取り組んだ際のあなたの思考プロセスを振り返ってください。何か改善できる点はありましたか? 次に同様のタスクに取り組む際に、より良い結果を出すための教訓を2〜3文程度で簡潔に述べてください。"
@@ -60,7 +60,6 @@ class ReflectionManager:
                 self.index.add(np.array(embeddings).astype("float32"))
 
     def save_reflection(self, reflection: Reflection) -> str:
-        # NOTE: 採番はsave_reflection内で行う
         reflection.id = str(uuid.uuid4())
         reflection_id = reflection.id
         self.reflections[reflection_id] = reflection

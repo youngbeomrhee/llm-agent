@@ -1,7 +1,8 @@
-from typing import Any
+import operator
+from typing import Annotated, Any
 
 from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
@@ -39,10 +40,10 @@ class TaskExecutionState(BaseModel):
         description="複数のオプションを持つタスクのリスト",
     )
     current_task_index: int = Field(default=0, description="現在のタスクのインデックス")
-    chosen_options: list[int] = Field(
+    chosen_options: Annotated[list[int], operator.add] = Field(
         default_factory=list, description="各タスクの選択されたオプションのインデックス"
     )
-    results: list[str] = Field(
+    results: Annotated[list[str], operator.add] = Field(
         default_factory=list, description="実行されたタスクの結果"
     )
     final_output: str = Field(default="", description="最終的な集約出力")
@@ -50,10 +51,9 @@ class TaskExecutionState(BaseModel):
 
 class QueryDecomposer:
     def __init__(self, llm: ChatOpenAI):
-        self.llm = llm.bind(response_format={"type": "json_object"})
+        self.llm = llm.with_structured_output(DecomposedTasks)
 
     def run(self, query: str) -> DecomposedTasks:
-        parser = PydanticOutputParser(pydantic_object=DecomposedTasks)
         prompt = ChatPromptTemplate.from_template(
             "タスク: 以下のクエリを3〜5個の高レベルタスクに分解し、各タスクに2〜3個の具体的なオプションを提供してください。\n"
             "要件:\n"
@@ -62,16 +62,10 @@ class QueryDecomposer:
             "3. タスクは論理的な順序で並べること。\n"
             "4. 各タスクとオプションは動詞で始めること。\n"
             "5. タスクは日本語で出力すること。\n\n"
-            "クエリ: {query}\n\n"
-            "出力形式: {format_instructions}"
+            "クエリ: {query}"
         )
-        chain = prompt | self.llm | parser
-        return chain.invoke(
-            {
-                "query": query,
-                "format_instructions": parser.get_format_instructions(),
-            }
-        )
+        chain = prompt | self.llm
+        return chain.invoke({"query": query})
 
 
 class OptionPresenter:
@@ -226,14 +220,14 @@ class MultiPathPlanGeneration:
     def _present_options(self, state: TaskExecutionState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
         chosen_option = self.option_presenter.run(current_task)
-        return {"chosen_options": state.chosen_options + [chosen_option]}
+        return {"chosen_options": [chosen_option]}
 
     def _execute_task(self, state: TaskExecutionState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
         chosen_option = current_task.options[state.chosen_options[-1]]
         result = self.task_executor.run(current_task, chosen_option)
         return {
-            "results": state.results + [result],
+            "results": [result],
             "current_task_index": state.current_task_index + 1,
         }
 

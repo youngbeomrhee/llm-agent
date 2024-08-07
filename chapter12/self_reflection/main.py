@@ -1,5 +1,6 @@
+import operator
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
 from common.reflection_manager import Reflection, ReflectionManager, TaskReflector
 from langchain_community.tools.tavily_search import TavilySearchResults
@@ -22,15 +23,26 @@ def format_reflections(reflections: list[Reflection]) -> str:
     )
 
 
+class DecomposedTasks(BaseModel):
+    values: list[str] = Field(
+        default_factory=list,
+        min_items=3,
+        max_items=5,
+        description="3~5個に分解されたタスク",
+    )
+
+
 class TaskExecutionState(BaseModel):
     original_query: str = Field(..., description="ユーザーが最初に入力したクエリ")
-    tasks: list[str] = Field(default_factory=list, description="実行するタスクのリスト")
+    tasks: DecomposedTasks = Field(
+        default_factory=DecomposedTasks, description="実行するタスクのリスト"
+    )
     current_task_index: int = Field(default=0, description="現在実行中のタスクの番号")
-    results: list[str] = Field(
+    results: Annotated[list[str], operator.add] = Field(
         default_factory=list, description="実行済みタスクの結果リスト"
     )
-    reflection_ids: list[str] = Field(
-        default_factory=list, description="各タスクの自己反省結果のID"
+    reflection_ids: Annotated[list[str], operator.add] = Field(
+        default_factory=list, description="リフレクション結果のIDリスト"
     )
     final_output: str = Field(default="", description="最終的な出力結果")
     retry_count: int = Field(default=0, description="タスクの再試行回数")
@@ -38,17 +50,17 @@ class TaskExecutionState(BaseModel):
 
 class QueryDecomposer:
     def __init__(self, llm: ChatOpenAI, reflection_manager: ReflectionManager):
-        self.llm = llm
+        self.llm = llm.with_structured_output(DecomposedTasks)
         self.reflection_manager = reflection_manager
         self.current_date = datetime.now().strftime("%Y-%m-%d")
 
-    def run(self, query: str) -> list[str]:
+    def run(self, query: str) -> DecomposedTasks:
         relevant_reflections = self.reflection_manager.get_relevant_reflections(query)
         reflection_text = format_reflections(relevant_reflections)
         prompt = self._create_decomposition_prompt()
-        chain = prompt | self.llm | StrOutputParser()
+        chain = prompt | self.llm
         tasks = chain.invoke({"query": query, "reflections": reflection_text})
-        return [task.strip() for task in tasks.split("\n") if task.strip()]
+        return tasks
 
     def _create_decomposition_prompt(self) -> ChatPromptTemplate:
         return ChatPromptTemplate.from_template(
@@ -62,8 +74,7 @@ class QueryDecomposer:
             "4. 各タスクは動詞で始めること。\n"
             "5. タスクに番号を付けないこと。\n"
             "6. タスクを作成する際に以下の過去のふりかえりを考慮すること:\n{reflections}\n\n"
-            "Query: {query}\n\n"
-            "Tasks:"
+            "Query: {query}"
         )
 
 
@@ -89,11 +100,11 @@ class TaskExecutor:
                     f"CURRENT_DATE: {self.current_date}\n"
                     "-----\n"
                     f"次のタスクを実行し、詳細な回答を提供してください。\n\nタスク: {task}\n\n"
-                    f"要件:\n"
-                    f"1. 必要に応じて提供されたツールを使用すること。\n"
-                    f"2. 実行において徹底的かつ包括的であること。\n"
-                    f"3. 可能な限り具体的な事実やデータを提供すること。\n"
-                    f"4. 発見事項を明確に要約すること。\n"
+                    "要件:\n"
+                    "1. 必要に応じて提供されたツールを使用すること。\n"
+                    "2. 実行において徹底的かつ包括的であること。\n"
+                    "3. 可能な限り具体的な事実やデータを提供すること。\n"
+                    "4. 発見事項を明確に要約すること。\n"
                     f"5. 以下の過去のふりかえりを考慮すること:\n{reflection_text}\n",
                 )
             ]
@@ -203,21 +214,16 @@ class ReflectiveAgent:
         return {"tasks": tasks}
 
     def _execute_task(self, state: TaskExecutionState) -> dict[str, Any]:
-        current_task = state.tasks[state.current_task_index]
+        current_task = state.tasks.values[state.current_task_index]
         result = self.task_executor.run(current_task)
-        return {
-            "results": state.results + [result],
-            "current_task_index": state.current_task_index,
-            "retry_count": 0,
-        }
+        return {"results": [result], "current_task_index": state.current_task_index}
 
     def _reflect_on_task(self, state: TaskExecutionState) -> dict[str, Any]:
-        current_task = state.tasks[state.current_task_index]
+        current_task = state.tasks.values[state.current_task_index]
         current_result = state.results[-1]
         reflection = self.task_reflector.run(current_task, current_result)
-        reflection_id = self.reflection_manager.save_reflection(reflection)
         return {
-            "reflection_ids": state.reflection_ids + [reflection_id],
+            "reflection_ids": [reflection.id],
             "retry_count": (
                 state.retry_count + 1 if reflection.judgment.needs_retry else 0
             ),
@@ -232,7 +238,7 @@ class ReflectiveAgent:
             and state.retry_count < self.max_retries
         ):
             return "retry"
-        elif state.current_task_index < len(state.tasks) - 1:
+        elif state.current_task_index < len(state.tasks.values) - 1:
             return "continue"
         else:
             return "finish"
