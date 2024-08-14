@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "chapter09"
+version = "0.1.0"
+description = ""
+authors = ["Masahiro Nishimi <nishimi@generative-agents.co.jp>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+langgraph = "^0.2.3"
+langchain-core = "^0.2.30"
+httpx = "^0.27.0"
+langgraph-checkpoint = "^1.0.2"
+aiofiles = "^24.1.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
