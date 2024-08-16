@@ -163,6 +163,7 @@ cython_debug/
 
 drawio/**.png
 *.db
+langchain/
 reflections.json
 
 # すべてのtmpディレクトリとその中身を無視（再帰的）
