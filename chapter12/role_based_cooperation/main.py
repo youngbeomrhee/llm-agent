@@ -9,8 +9,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
-from passive_goal_creator.main import Goals, PassiveGoalCreator
-from prompt_optimiser.main import OptimisedGoals, PromptOptimiser
+from single_path_plan_generation.main import DecomposedTasks, QueryDecomposer
 
 
 class Role(BaseModel):
@@ -42,13 +41,11 @@ class AgentState(BaseModel):
 
 class Planner:
     def __init__(self, llm: ChatOpenAI):
-        self.passive_goal_creator = PassiveGoalCreator(llm=llm)
-        self.prompt_optimiser = PromptOptimiser(llm=llm)
+        self.query_decomposer = QueryDecomposer(llm=llm)
 
     def run(self, query: str) -> list[Task]:
-        goals: Goals = self.passive_goal_creator.run(user_input=query)
-        optimised_goals: OptimisedGoals = self.prompt_optimiser.run(goals=goals)
-        return [Task(description=goal.text) for goal in optimised_goals.goals]
+        decomposed_tasks: DecomposedTasks = self.query_decomposer.run(query=query)
+        return [Task(description=task) for task in decomposed_tasks.values]
 
 
 class RoleAssigner:

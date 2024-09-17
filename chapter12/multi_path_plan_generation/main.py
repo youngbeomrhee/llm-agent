@@ -1,4 +1,5 @@
 import operator
+from datetime import datetime
 from typing import Annotated, Any
 
 from langchain_community.tools.tavily_search import TavilySearchResults
@@ -8,6 +9,8 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
+from passive_goal_creator.main import Goal, PassiveGoalCreator
+from prompt_optimizer.main import OptimizedGoal, PromptOptimizer
 
 
 class TaskOption(BaseModel):
@@ -41,31 +44,41 @@ class TaskExecutionState(BaseModel):
     )
     current_task_index: int = Field(default=0, description="現在のタスクのインデックス")
     chosen_options: Annotated[list[int], operator.add] = Field(
-        default_factory=list, description="各タスクの選択されたオプションのインデックス"
+        default_factory=list, description="各タスクで選択されたオプションのインデックス"
     )
     results: Annotated[list[str], operator.add] = Field(
         default_factory=list, description="実行されたタスクの結果"
     )
-    final_output: str = Field(default="", description="最終的な集約出力")
+    final_output: str = Field(default="", description="最終出力")
 
 
 class QueryDecomposer:
     def __init__(self, llm: ChatOpenAI):
-        self.llm = llm.with_structured_output(DecomposedTasks)
+        self.llm = llm
+        self.current_date = datetime.now().strftime("%Y-%m-%d")
+        self.passive_goal_creator = PassiveGoalCreator(llm=self.llm)
+        self.prompt_optimizer = PromptOptimizer(llm=self.llm)
 
     def run(self, query: str) -> DecomposedTasks:
+        goal: Goal = self.passive_goal_creator.run(user_input=query)
+        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(goal=goal)
+
         prompt = ChatPromptTemplate.from_template(
-            "タスク: 以下のクエリを3〜5個の高レベルタスクに分解し、各タスクに2〜3個の具体的なオプションを提供してください。\n"
+            f"CURRENT_DATE: {self.current_date}\n"
+            "-----\n"
+            "タスク: 与えられた目標を3〜5個の高レベルタスクに分解し、各タスクに2〜3個の具体的なオプションを提供してください。\n"
             "要件:\n"
-            "1. 各高レベルタスクは明確な目的を持つこと。\n"
-            "2. 各タスクに2〜3個の異なるアプローチまたはオプションを提供すること。\n"
-            "3. タスクは論理的な順序で並べること。\n"
-            "4. 各タスクとオプションは動詞で始めること。\n"
+            "1. 以下の行動だけで目標を達成すること。決して指定された以外の行動をとらないこと。\n"
+            "   - インターネットを利用して、目標を達成するための調査を行う。\n"
+            "   - ユーザーのためのレポートを生成する。\n"
+            "2. 各高レベルタスクは具体的かつ詳細に記載されており、単独で実行ならびに検証可能な情報を含めること。一切抽象的な表現を含まないこと。\n"
+            "3. 各項レベルタスクに2〜3個の異なるアプローチまたはオプションを提供すること。\n"
+            "4. タスクは実行可能な順序でリスト化すること。\n"
             "5. タスクは日本語で出力すること。\n\n"
-            "クエリ: {query}"
+            "目標: {query}"
         )
-        chain = prompt | self.llm
-        return chain.invoke({"query": query})
+        chain = prompt | self.llm.with_structured_output(DecomposedTasks)
+        return chain.invoke({"query": optimized_goal.text})
 
 
 class OptionPresenter:

@@ -10,6 +10,8 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
+from passive_goal_creator.main import Goal, PassiveGoalCreator
+from prompt_optimizer.main import OptimizedGoal, PromptOptimizer
 
 
 def format_reflections(reflections: list[Reflection]) -> str:
@@ -51,30 +53,37 @@ class TaskExecutionState(BaseModel):
 class QueryDecomposer:
     def __init__(self, llm: ChatOpenAI, reflection_manager: ReflectionManager):
         self.llm = llm.with_structured_output(DecomposedTasks)
-        self.reflection_manager = reflection_manager
         self.current_date = datetime.now().strftime("%Y-%m-%d")
+        self.reflection_manager = reflection_manager
+        self.passive_goal_creator = PassiveGoalCreator(llm=self.llm)
+        self.prompt_optimizer = PromptOptimizer(llm=self.llm)
 
     def run(self, query: str) -> DecomposedTasks:
+        goal: Goal = self.passive_goal_creator.run(user_input=query)
+        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(goal=goal)
         relevant_reflections = self.reflection_manager.get_relevant_reflections(query)
         reflection_text = format_reflections(relevant_reflections)
         prompt = self._create_decomposition_prompt()
         chain = prompt | self.llm
-        tasks = chain.invoke({"query": query, "reflections": reflection_text})
+        tasks = chain.invoke(
+            {"query": optimized_goal.text, "reflections": reflection_text}
+        )
         return tasks
 
     def _create_decomposition_prompt(self) -> ChatPromptTemplate:
         return ChatPromptTemplate.from_template(
             f"CURRENT_DATE: {self.current_date}\n"
             "-----\n"
-            "タスク: 次のクエリを具体的で実行可能なタスクに分解してください。\n"
+            "タスク: 与えられた目標を具体的で実行可能なタスクに分解してください。\n"
             "要件:\n"
-            "1. 各タスクは単一で明確な指示であること。\n"
-            "2. タスクは実行の論理的な順序でリスト化すること。\n"
-            "3. 3から5つのタスクを提供すること。\n"
-            "4. 各タスクは動詞で始めること。\n"
-            "5. タスクに番号を付けないこと。\n"
-            "6. タスクを作成する際に以下の過去のふりかえりを考慮すること:\n{reflections}\n\n"
-            "Query: {query}"
+            "1. 以下の行動だけで目標を達成すること。決して指定された以外の行動をとらないこと。\n"
+            "   - インターネットを利用して、目標を達成するための調査を行う。\n"
+            "   - ユーザーのためのレポートを生成する。\n"
+            "2. 各タスクは具体的かつ詳細に記載されており、単独で実行ならびに検証可能な情報を含めること。一切抽象的な表現を含まないこと。\n"
+            "3. タスクは実行可能な順序でリスト化すること。\n"
+            "4. タスクは日本語で出力すること。\n"
+            "5. タスクを作成する際に以下の過去のふりかえりを考慮すること:\n{reflections}\n\n"
+            "目標: {query}"
         )
 
 
