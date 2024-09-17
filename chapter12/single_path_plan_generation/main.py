@@ -23,7 +23,7 @@ class DecomposedTasks(BaseModel):
     )
 
 
-class TaskExecutionState(BaseModel):
+class SinglePathPlanGenerationState(BaseModel):
     query: str = Field(..., description="ユーザーが入力したクエリ")
     optimized_goal: str = Field(default="", description="最適化された目標")
     optimized_response: str = Field(
@@ -123,7 +123,7 @@ class SinglePathPlanGeneration:
         self.graph = self._create_graph()
 
     def _create_graph(self) -> StateGraph:
-        graph = StateGraph(TaskExecutionState)
+        graph = StateGraph(SinglePathPlanGenerationState)
         graph.add_node("goal_setting", self._goal_setting)
         graph.add_node("decompose_query", self._decompose_query)
         graph.add_node("execute_task", self._execute_task)
@@ -139,7 +139,7 @@ class SinglePathPlanGeneration:
         graph.add_edge("aggregate_results", END)
         return graph.compile()
 
-    def _goal_setting(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _goal_setting(self, state: SinglePathPlanGenerationState) -> dict[str, Any]:
         # プロンプト最適化
         goal: Goal = self.passive_goal_creator.run(user_input=state.query)
         optimized_goal: OptimizedGoal = self.prompt_optimizer.run(goal=goal)
@@ -150,13 +150,13 @@ class SinglePathPlanGeneration:
             "optimized_response": optimized_response,
         }
 
-    def _decompose_query(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _decompose_query(self, state: SinglePathPlanGenerationState) -> dict[str, Any]:
         decomposed_tasks: DecomposedTasks = self.query_decomposer.run(
             query=state.optimized_goal
         )
         return {"tasks": decomposed_tasks.values}
 
-    def _execute_task(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _execute_task(self, state: SinglePathPlanGenerationState) -> dict[str, Any]:
         current_task = state.tasks[state.current_task_index]
         result = self.task_executor.run(current_task)
         return {
@@ -164,7 +164,9 @@ class SinglePathPlanGeneration:
             "current_task_index": state.current_task_index + 1,
         }
 
-    def _aggregate_results(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _aggregate_results(
+        self, state: SinglePathPlanGenerationState
+    ) -> dict[str, Any]:
         final_output = self.result_aggregator.run(
             query=state.optimized_goal,
             response_definition=state.optimized_response,
@@ -173,7 +175,7 @@ class SinglePathPlanGeneration:
         return {"final_output": final_output}
 
     def run(self, query: str) -> str:
-        initial_state = TaskExecutionState(query=query)
+        initial_state = SinglePathPlanGenerationState(query=query)
         final_state = self.graph.invoke(initial_state, {"recursion_limit": 1000})
         return final_state.get("final_output", "Failed to generate a final response.")
 

@@ -5,12 +5,13 @@ from typing import Annotated, Any
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
 from passive_goal_creator.main import Goal, PassiveGoalCreator
 from prompt_optimizer.main import OptimizedGoal, PromptOptimizer
+from pydantic import BaseModel, Field
+from response_optimizer.main import ResponseOptimizer
 
 
 class TaskOption(BaseModel):
@@ -36,8 +37,10 @@ class DecomposedTasks(BaseModel):
     )
 
 
-class TaskExecutionState(BaseModel):
-    original_query: str = Field(..., description="ユーザーの初期クエリ")
+class MultiPathPlanGenerationState(BaseModel):
+    query: str = Field(..., description="ユーザーが入力したクエリ")
+    optimized_goal: str = Field(default="", description="最適化された目標")
+    optimized_response: str = Field(default="", description="最適化されたレスポンス")
     tasks: DecomposedTasks = Field(
         default_factory=DecomposedTasks,
         description="複数のオプションを持つタスクのリスト",
@@ -149,32 +152,25 @@ class ResultAggregator:
 
     def run(
         self,
-        original_query: str,
+        query: str,
+        response_definition: str,
         tasks: list[Task],
         chosen_options: list[int],
         results: list[str],
     ) -> str:
         prompt = ChatPromptTemplate.from_template(
-            "タスク: 以下の情報に基づいて、包括的で一貫性のある回答を作成してください。\n"
-            "要件:\n"
-            "1. 提供されたすべての情報を適切な構成で総合すること。\n"
-            "2. 回答が元のクエリに直接対応していることを確認すること。\n"
-            "3. 実行された各タスクからの主要なポイントと発見事項を含めること。\n"
-            "4. 各タスクで選択されたアプローチを強調すること。\n"
-            "5. 最後に結論またはまとめを提供すること。\n"
-            "6. 回答は詳細かつ簡潔で、300〜350語程度を目指すこと。\n"
-            "7. 回答は日本語で行うこと。\n\n"
-            "元のクエリ: {original_query}\n\n"
-            "実行されたタスクと結果:\n{task_results}\n\n"
-            "総合的な回答:"
+            "与えられた目標:\n{query}\n\n"
+            "調査結果:\n{task_results}\n\n"
+            "与えられた目標に対し、調査結果を用いて、以下の指示に基づいてレスポンスを生成してください。\n"
+            "{response_definition}"
         )
-
         task_results = self._format_task_results(tasks, chosen_options, results)
         chain = prompt | self.llm | StrOutputParser()
         return chain.invoke(
             {
-                "original_query": original_query,
+                "query": query,
                 "task_results": task_results,
+                "response_definition": response_definition,
             }
         )
 
@@ -199,22 +195,25 @@ class MultiPathPlanGeneration:
         self,
         llm: ChatOpenAI,
     ):
-        self.query_decomposer = QueryDecomposer(llm=llm)
-        self.option_presenter = OptionPresenter(llm=llm)
-        self.task_executor = TaskExecutor(llm=llm)
-        self.result_aggregator = ResultAggregator(llm=llm)
+        self.llm = llm
+        self.passive_goal_creator = PassiveGoalCreator(llm=self.llm)
+        self.prompt_optimizer = PromptOptimizer(llm=self.llm)
+        self.response_optimizer = ResponseOptimizer(llm=self.llm)
+        self.query_decomposer = QueryDecomposer(llm=self.llm)
+        self.option_presenter = OptionPresenter(llm=self.llm)
+        self.task_executor = TaskExecutor(llm=self.llm)
+        self.result_aggregator = ResultAggregator(llm=self.llm)
         self.graph = self._create_graph()
 
     def _create_graph(self) -> StateGraph:
-        graph = StateGraph(TaskExecutionState)
-
+        graph = StateGraph(MultiPathPlanGenerationState)
+        graph.add_node("goal_setting", self._goal_setting)
         graph.add_node("decompose_query", self._decompose_query)
         graph.add_node("present_options", self._present_options)
         graph.add_node("execute_task", self._execute_task)
         graph.add_node("aggregate_results", self._aggregate_results)
-
-        graph.set_entry_point("decompose_query")
-
+        graph.set_entry_point("goal_setting")
+        graph.add_edge("goal_setting", "decompose_query")
         graph.add_edge("decompose_query", "present_options")
         graph.add_edge("present_options", "execute_task")
         graph.add_conditional_edges(
@@ -226,16 +225,27 @@ class MultiPathPlanGeneration:
 
         return graph.compile()
 
-    def _decompose_query(self, state: TaskExecutionState) -> dict[str, Any]:
-        tasks = self.query_decomposer.run(state.original_query)
+    def _goal_setting(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
+        # プロンプト最適化
+        goal: Goal = self.passive_goal_creator.run(user_input=state.query)
+        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(goal=goal)
+        # レスポンス最適化
+        optimized_response: str = self.response_optimizer.run(query=optimized_goal.text)
+        return {
+            "optimized_goal": optimized_goal.text,
+            "optimized_response": optimized_response,
+        }
+
+    def _decompose_query(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
+        tasks = self.query_decomposer.run(state.optimized_goal)
         return {"tasks": tasks}
 
-    def _present_options(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _present_options(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
         chosen_option = self.option_presenter.run(current_task)
         return {"chosen_options": [chosen_option]}
 
-    def _execute_task(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _execute_task(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
         chosen_option = current_task.options[state.chosen_options[-1]]
         result = self.task_executor.run(current_task, chosen_option)
@@ -244,9 +254,10 @@ class MultiPathPlanGeneration:
             "current_task_index": state.current_task_index + 1,
         }
 
-    def _aggregate_results(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _aggregate_results(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         final_output = self.result_aggregator.run(
-            state.original_query,
+            state.optimized_goal,
+            state.optimized_response,
             state.tasks.values,
             state.chosen_options,
             state.results,
@@ -254,7 +265,7 @@ class MultiPathPlanGeneration:
         return {"final_output": final_output}
 
     def run(self, query: str) -> str:
-        initial_state = TaskExecutionState(original_query=query)
+        initial_state = MultiPathPlanGenerationState(query=query)
         final_state = self.graph.invoke(initial_state, {"recursion_limit": 1000})
         return final_state.get("final_output", "最終的な回答の生成に失敗しました。")
 
