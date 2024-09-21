@@ -4,9 +4,9 @@ from typing import Annotated, Any, Optional
 from dotenv import load_dotenv
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
+from pydantic import BaseModel, Field
 
 # .envファイルから環境変数を読み込む
 load_dotenv()
@@ -41,8 +41,8 @@ class InterviewResult(BaseModel):
 
 # 評価の結果を表すデータモデル
 class EvaluationResult(BaseModel):
-    is_sufficient: bool = Field(..., description="情報が十分かどうか")
     reason: str = Field(..., description="判断の理由")
+    is_sufficient: bool = Field(..., description="情報が十分かどうか")
 
 
 # 要件定義生成AIエージェントのステート
