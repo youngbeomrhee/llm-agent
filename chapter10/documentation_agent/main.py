@@ -41,8 +41,8 @@ class InterviewResult(BaseModel):
 
 # 評価の結果を表すデータモデル
 class EvaluationResult(BaseModel):
-    is_sufficient: bool = Field(..., description="情報が十分かどうか")
     reason: str = Field(..., description="判断の理由")
+    is_sufficient: bool = Field(..., description="情報が十分かどうか")
 
 
 # 要件定義生成AIエージェントのステート
