@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     TAVILY_API_KEY: str
     LANGCHAIN_TRACING_V2: str = "false"
-    LANGCHAIN_ENDPOINT: str = ""
+    LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
     LANGCHAIN_API_KEY: str = ""
-    LANGCHAIN_PROJECT: str = ""
+    LANGCHAIN_PROJECT: str = "agent-book"
 
     # for Application
     openai_smart_model: str = "gpt-4o"

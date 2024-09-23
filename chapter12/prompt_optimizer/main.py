@@ -15,9 +15,10 @@ class OptimizedGoal(BaseModel):
 
 class PromptOptimizer:
     def __init__(self, llm: ChatOpenAI):
-        self.llm = llm.with_structured_output(OptimizedGoal)
+        self.llm = llm
 
-        self.prompt = ChatPromptTemplate.from_template(
+    def run(self, query: str) -> OptimizedGoal:
+        prompt = ChatPromptTemplate.from_template(
             "あなたは目標設定の専門家です。以下の目標をSMART原則（Specific: 具体的、Measurable: 測定可能、Achievable: 達成可能、Relevant: 関連性が高い、Time-bound: 期限がある）に基づいて最適化してください。\n\n"
             "元の目標:\n"
             "{query}\n\n"
@@ -33,10 +34,8 @@ class PromptOptimizer:
             "5. 元の目標で期限が指定されていない場合は、期限を考慮する必要はありません。\n"
             "6. REMEMBER: 決して2.以外の行動を取ってはいけません。"
         )
-        self.chain = self.prompt | self.llm
-
-    def run(self, query: str) -> OptimizedGoal:
-        return self.chain.invoke({"query": query})
+        chain = prompt | self.llm.with_structured_output(OptimizedGoal)
+        return chain.invoke({"query": query})
 
 
 def main():
@@ -62,7 +61,7 @@ def main():
     prompt_optimizer = PromptOptimizer(llm=llm)
     optimised_goal: OptimizedGoal = prompt_optimizer.run(query=goal.text)
 
-    print(f"最適化された目標: {optimised_goal.text}")
+    print(f"{optimised_goal.text}")
 
 
 if __name__ == "__main__":
