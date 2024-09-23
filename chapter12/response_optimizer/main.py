@@ -68,10 +68,10 @@ def main():
     )
 
     passive_goal_creator = PassiveGoalCreator(llm=llm)
-    goal: Goal = passive_goal_creator.run(args.task)
+    goal: Goal = passive_goal_creator.run(query=args.task)
 
     prompt_optimizer = PromptOptimizer(llm=llm)
-    optimized_goal: OptimizedGoal = prompt_optimizer.run(goal=goal)
+    optimized_goal: OptimizedGoal = prompt_optimizer.run(query=goal.text)
     response_optimizer = ResponseOptimizer(llm=llm)
     optimized_response: str = response_optimizer.run(query=optimized_goal.text)
 

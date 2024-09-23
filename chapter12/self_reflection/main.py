@@ -6,12 +6,13 @@ from common.reflection_manager import Reflection, ReflectionManager, TaskReflect
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
 from passive_goal_creator.main import Goal, PassiveGoalCreator
 from prompt_optimizer.main import OptimizedGoal, PromptOptimizer
+from pydantic import BaseModel, Field
+from response_optimizer.main import ResponseOptimizer
 
 
 def format_reflections(reflections: list[Reflection]) -> str:
@@ -35,7 +36,11 @@ class DecomposedTasks(BaseModel):
 
 
 class TaskExecutionState(BaseModel):
-    original_query: str = Field(..., description="ユーザーが最初に入力したクエリ")
+    query: str = Field(..., description="ユーザーが最初に入力したクエリ")
+    optimized_goal: str = Field(default="", description="最適化された目標")
+    optimized_response: str = Field(
+        default="", description="最適化されたレスポンス定義"
+    )
     tasks: DecomposedTasks = Field(
         default_factory=DecomposedTasks, description="実行するタスクのリスト"
     )
@@ -50,24 +55,50 @@ class TaskExecutionState(BaseModel):
     retry_count: int = Field(default=0, description="タスクの再試行回数")
 
 
+class ReflectiveGoalCreator:
+    def __init__(self, llm: ChatOpenAI, reflection_manager: ReflectionManager):
+        self.llm = llm
+        self.reflection_manager = reflection_manager
+        self.passive_goal_creator = PassiveGoalCreator(llm=self.llm)
+        self.prompt_optimizer = PromptOptimizer(llm=self.llm)
+
+    def run(self, query: str) -> str:
+        relevant_reflections = self.reflection_manager.get_relevant_reflections(query)
+        reflection_text = format_reflections(relevant_reflections)
+
+        query = f"{query}\n\n目標設定する際に以下の過去のふりかえりを考慮すること:\n{reflection_text}"
+        goal: Goal = self.passive_goal_creator.run(query=query)
+        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(query=goal.text)
+        return optimized_goal.text
+
+
+class ReflectiveResponseOptimizer:
+    def __init__(self, llm: ChatOpenAI, reflection_manager: ReflectionManager):
+        self.llm = llm
+        self.reflection_manager = reflection_manager
+        self.response_optimizer = ResponseOptimizer(llm=llm)
+
+    def run(self, query: str) -> str:
+        relevant_reflections = self.reflection_manager.get_relevant_reflections(query)
+        reflection_text = format_reflections(relevant_reflections)
+
+        query = f"{query}\n\nレスポンス最適化に以下の過去のふりかえりを考慮すること:\n{reflection_text}"
+        optimized_response: str = self.response_optimizer.run(query=query)
+        return optimized_response
+
+
 class QueryDecomposer:
     def __init__(self, llm: ChatOpenAI, reflection_manager: ReflectionManager):
         self.llm = llm.with_structured_output(DecomposedTasks)
         self.current_date = datetime.now().strftime("%Y-%m-%d")
         self.reflection_manager = reflection_manager
-        self.passive_goal_creator = PassiveGoalCreator(llm=self.llm)
-        self.prompt_optimizer = PromptOptimizer(llm=self.llm)
 
     def run(self, query: str) -> DecomposedTasks:
-        goal: Goal = self.passive_goal_creator.run(user_input=query)
-        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(goal=goal)
         relevant_reflections = self.reflection_manager.get_relevant_reflections(query)
         reflection_text = format_reflections(relevant_reflections)
         prompt = self._create_decomposition_prompt()
         chain = prompt | self.llm
-        tasks = chain.invoke(
-            {"query": optimized_goal.text, "reflections": reflection_text}
-        )
+        tasks = chain.invoke({"query": query, "reflections": reflection_text})
         return tasks
 
     def _create_decomposition_prompt(self) -> ChatPromptTemplate:
@@ -127,49 +158,33 @@ class ResultAggregator:
         self.current_date = datetime.now().strftime("%Y-%m-%d")
 
     def run(
-        self, original_query: str, results: list[str], reflection_ids: list[str]
+        self,
+        query: str,
+        results: list[str],
+        reflection_ids: list[str],
+        response_definition: str,
     ) -> str:
-        reflections = [
+        relevant_reflections = [
             self.reflection_manager.get_reflection(rid) for rid in reflection_ids
         ]
-        prompt = self._create_aggregation_prompt()
+        prompt = ChatPromptTemplate.from_template(
+            "与えられた目標:\n{query}\n\n"
+            "調査結果:\n{results}\n\n"
+            "与えられた目標に対し、調査結果を用いて、以下の指示に基づいてレスポンスを生成してください。\n"
+            "{response_definition}\n\n"
+            "過去のふりかえりを考慮すること:\n{reflection_text}\n"
+        )
         chain = prompt | self.llm | StrOutputParser()
         return chain.invoke(
-            self._create_aggregation_input(original_query, results, reflections)
+            {
+                "query": query,
+                "results": "\n\n".join(
+                    f"Info {i+1}:\n{result}" for i, result in enumerate(results)
+                ),
+                "response_definition": response_definition,
+                "reflection_text": format_reflections(relevant_reflections),
+            }
         )
-
-    def _create_aggregation_prompt(self) -> ChatPromptTemplate:
-        return ChatPromptTemplate.from_template(
-            f"CURRENT_DATE: {self.current_date}\n"
-            "-----\n"
-            "タスク: 以下の情報に基づいて、包括的で一貫性のある回答を作成してください。\n"
-            "要件:\n"
-            "1. 提供されたすべての情報を統合し、よく構成された回答にすること。\n"
-            "2. 回答が元のクエリに直接対応していることを確認すること。\n"
-            "3. 各情報の重要なポイントや発見事項を含めること。\n"
-            "4. 最後に結論や要約を提供すること。\n"
-            "5. 回答は詳細でありながら簡潔であり、250〜300語程度を目指すこと。\n"
-            "6. 回答は必ず日本語で行うこと。\n\n"
-            "Original Query: {original_query}\n\n"
-            "Information:\n{results}\n\n"
-            "Self-reflections:\n{reflections}\n\n"
-            "Synthesized Response:"
-        )
-
-    @staticmethod
-    def _create_aggregation_input(
-        original_query: str, results: list[str], reflections: list[Reflection]
-    ) -> dict[str, Any]:
-        return {
-            "original_query": original_query,
-            "results": "\n\n".join(
-                f"Info {i+1}:\n{result}" for i, result in enumerate(results)
-            ),
-            "reflections": "\n\n".join(
-                f"Reflection {i+1}:\n{reflection.reflection}\nJudgment: {reflection.judgment}"
-                for i, reflection in enumerate(reflections)
-            ),
-        }
 
 
 class ReflectiveAgent:
@@ -180,29 +195,36 @@ class ReflectiveAgent:
         task_reflector: TaskReflector,
         max_retries: int = 2,
     ):
-        self.llm = llm
         self.reflection_manager = reflection_manager
         self.task_reflector = task_reflector
+        self.reflective_goal_creator = ReflectiveGoalCreator(
+            llm=llm, reflection_manager=self.reflection_manager
+        )
+        self.reflective_response_optimizer = ReflectiveResponseOptimizer(
+            llm=llm, reflection_manager=self.reflection_manager
+        )
         self.query_decomposer = QueryDecomposer(
-            llm=self.llm, reflection_manager=self.reflection_manager
+            llm=llm, reflection_manager=self.reflection_manager
         )
         self.task_executor = TaskExecutor(
-            llm=self.llm, reflection_manager=self.reflection_manager
+            llm=llm, reflection_manager=self.reflection_manager
         )
         self.result_aggregator = ResultAggregator(
-            llm=self.llm, reflection_manager=self.reflection_manager
+            llm=llm, reflection_manager=self.reflection_manager
         )
         self.max_retries = max_retries
         self.graph = self._create_graph()
 
     def _create_graph(self) -> StateGraph:
         graph = StateGraph(TaskExecutionState)
+        graph.add_node("goal_setting", self._goal_setting)
         graph.add_node("decompose_query", self._decompose_query)
         graph.add_node("execute_task", self._execute_task)
         graph.add_node("reflect_on_task", self._reflect_on_task)
         graph.add_node("update_task_index", self._update_task_index)
         graph.add_node("aggregate_results", self._aggregate_results)
-        graph.set_entry_point("decompose_query")
+        graph.set_entry_point("goal_setting")
+        graph.add_edge("goal_setting", "decompose_query")
         graph.add_edge("decompose_query", "execute_task")
         graph.add_edge("execute_task", "reflect_on_task")
         graph.add_conditional_edges(
@@ -218,19 +240,29 @@ class ReflectiveAgent:
         graph.add_edge("aggregate_results", END)
         return graph.compile()
 
+    def _goal_setting(self, state: TaskExecutionState) -> dict[str, Any]:
+        optimized_goal: str = self.reflective_goal_creator.run(query=state.query)
+        optimized_response: str = self.reflective_response_optimizer.run(
+            query=optimized_goal
+        )
+        return {
+            "optimized_goal": optimized_goal,
+            "optimized_response": optimized_response,
+        }
+
     def _decompose_query(self, state: TaskExecutionState) -> dict[str, Any]:
-        tasks = self.query_decomposer.run(state.original_query)
+        tasks = self.query_decomposer.run(query=state.optimized_goal)
         return {"tasks": tasks}
 
     def _execute_task(self, state: TaskExecutionState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
-        result = self.task_executor.run(current_task)
+        result = self.task_executor.run(task=current_task)
         return {"results": [result], "current_task_index": state.current_task_index}
 
     def _reflect_on_task(self, state: TaskExecutionState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
         current_result = state.results[-1]
-        reflection = self.task_reflector.run(current_task, current_result)
+        reflection = self.task_reflector.run(task=current_task, result=current_result)
         return {
             "reflection_ids": [reflection.id],
             "retry_count": (
@@ -257,12 +289,15 @@ class ReflectiveAgent:
 
     def _aggregate_results(self, state: TaskExecutionState) -> dict[str, Any]:
         final_output = self.result_aggregator.run(
-            state.original_query, state.results, state.reflection_ids
+            query=state.optimized_goal,
+            results=state.results,
+            reflection_ids=state.reflection_ids,
+            response_definition=state.optimized_response,
         )
         return {"final_output": final_output}
 
     def run(self, query: str) -> str:
-        initial_state = TaskExecutionState(original_query=query)
+        initial_state = TaskExecutionState(query=query)
         final_state = self.graph.invoke(initial_state, {"recursion_limit": 1000})
         return final_state.get("final_output", "エラー: 出力に失敗しました。")
 

@@ -59,13 +59,8 @@ class QueryDecomposer:
     def __init__(self, llm: ChatOpenAI):
         self.llm = llm
         self.current_date = datetime.now().strftime("%Y-%m-%d")
-        self.passive_goal_creator = PassiveGoalCreator(llm=self.llm)
-        self.prompt_optimizer = PromptOptimizer(llm=self.llm)
 
     def run(self, query: str) -> DecomposedTasks:
-        goal: Goal = self.passive_goal_creator.run(user_input=query)
-        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(goal=goal)
-
         prompt = ChatPromptTemplate.from_template(
             f"CURRENT_DATE: {self.current_date}\n"
             "-----\n"
@@ -81,7 +76,7 @@ class QueryDecomposer:
             "目標: {query}"
         )
         chain = prompt | self.llm.with_structured_output(DecomposedTasks)
-        return chain.invoke({"query": optimized_goal.text})
+        return chain.invoke({"query": query})
 
 
 class OptionPresenter:
@@ -227,8 +222,8 @@ class MultiPathPlanGeneration:
 
     def _goal_setting(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         # プロンプト最適化
-        goal: Goal = self.passive_goal_creator.run(user_input=state.query)
-        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(goal=goal)
+        goal: Goal = self.passive_goal_creator.run(query=state.query)
+        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(query=goal.text)
         # レスポンス最適化
         optimized_response: str = self.response_optimizer.run(query=optimized_goal.text)
         return {
@@ -237,18 +232,21 @@ class MultiPathPlanGeneration:
         }
 
     def _decompose_query(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
-        tasks = self.query_decomposer.run(state.optimized_goal)
+        tasks = self.query_decomposer.run(query=state.optimized_goal)
         return {"tasks": tasks}
 
     def _present_options(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
-        chosen_option = self.option_presenter.run(current_task)
+        chosen_option = self.option_presenter.run(task=current_task)
         return {"chosen_options": [chosen_option]}
 
     def _execute_task(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
         chosen_option = current_task.options[state.chosen_options[-1]]
-        result = self.task_executor.run(current_task, chosen_option)
+        result = self.task_executor.run(
+            task=current_task,
+            chosen_option=chosen_option,
+        )
         return {
             "results": [result],
             "current_task_index": state.current_task_index + 1,
@@ -256,11 +254,11 @@ class MultiPathPlanGeneration:
 
     def _aggregate_results(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         final_output = self.result_aggregator.run(
-            state.optimized_goal,
-            state.optimized_response,
-            state.tasks.values,
-            state.chosen_options,
-            state.results,
+            query=state.optimized_goal,
+            response_definition=state.optimized_response,
+            tasks=state.tasks.values,
+            chosen_options=state.chosen_options,
+            results=state.results,
         )
         return {"final_output": final_output}
 
@@ -287,7 +285,7 @@ def main():
         model=settings.openai_smart_model, temperature=settings.temperature
     )
     agent = MultiPathPlanGeneration(llm=llm)
-    result = agent.run(args.task)
+    result = agent.run(query=args.task)
     print("\n=== 最終出力 ===")
     print(result)
 

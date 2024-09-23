@@ -113,13 +113,12 @@ class ResultAggregator:
 
 class SinglePathPlanGeneration:
     def __init__(self, llm: ChatOpenAI):
-        self.llm = llm
-        self.passive_goal_creator = PassiveGoalCreator(llm=self.llm)
-        self.prompt_optimizer = PromptOptimizer(llm=self.llm)
-        self.response_optimizer = ResponseOptimizer(llm=self.llm)
-        self.query_decomposer = QueryDecomposer(llm=self.llm)
-        self.task_executor = TaskExecutor(llm=self.llm)
-        self.result_aggregator = ResultAggregator(llm=self.llm)
+        self.passive_goal_creator = PassiveGoalCreator(llm=llm)
+        self.prompt_optimizer = PromptOptimizer(llm=llm)
+        self.response_optimizer = ResponseOptimizer(llm=llm)
+        self.query_decomposer = QueryDecomposer(llm=llm)
+        self.task_executor = TaskExecutor(llm=llm)
+        self.result_aggregator = ResultAggregator(llm=llm)
         self.graph = self._create_graph()
 
     def _create_graph(self) -> StateGraph:
@@ -141,8 +140,8 @@ class SinglePathPlanGeneration:
 
     def _goal_setting(self, state: SinglePathPlanGenerationState) -> dict[str, Any]:
         # プロンプト最適化
-        goal: Goal = self.passive_goal_creator.run(user_input=state.query)
-        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(goal=goal)
+        goal: Goal = self.passive_goal_creator.run(query=state.query)
+        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(query=goal.text)
         # レスポンス最適化
         optimized_response: str = self.response_optimizer.run(query=optimized_goal.text)
         return {

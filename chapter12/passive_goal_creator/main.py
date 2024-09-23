@@ -26,13 +26,13 @@ class PassiveGoalCreator:
             "   - インターネットを利用して、目標を達成するための調査を行う。\n"
             "   - ユーザーのためのレポートを生成する。\n"
             "3. 決して2.以外の行動を取ってはいけません。\n"
-            "ユーザーの入力: {user_input}\n\n"
+            "ユーザーの入力: {query}\n\n"
             "生成された目標:"
         )
         self.chain = self.prompt | self.llm
 
-    def run(self, user_input: str) -> Goal:
-        return self.chain.invoke({"user_input": user_input})
+    def run(self, query: str) -> Goal:
+        return self.chain.invoke({"query": query})
 
 
 def main():
@@ -51,8 +51,8 @@ def main():
     llm = ChatOpenAI(
         model=settings.openai_smart_model, temperature=settings.temperature
     )
-    agent = PassiveGoalCreator(llm=llm)
-    result: Goal = agent.run(args.task)
+    goal_creator = PassiveGoalCreator(llm=llm)
+    result: Goal = goal_creator.run(query=args.task)
 
     print(f"生成された目標: {result.text}")
 

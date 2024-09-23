@@ -7,8 +7,8 @@ import faiss
 import numpy as np
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import OpenAIEmbeddings
+from pydantic import BaseModel, Field
 from retry import retry
 from settings import Settings
 

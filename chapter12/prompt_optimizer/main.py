@@ -20,7 +20,7 @@ class PromptOptimizer:
         self.prompt = ChatPromptTemplate.from_template(
             "あなたは目標設定の専門家です。以下の目標をSMART原則（Specific: 具体的、Measurable: 測定可能、Achievable: 達成可能、Relevant: 関連性が高い、Time-bound: 期限がある）に基づいて最適化してください。\n\n"
             "元の目標:\n"
-            "{goal}\n\n"
+            "{query}\n\n"
             "指示:\n"
             "1. 元の目標を分析し、不足している要素や改善点を特定してください。\n"
             "2. あなたが実行可能な行動は以下の行動だけです。\n"
@@ -35,8 +35,8 @@ class PromptOptimizer:
         )
         self.chain = self.prompt | self.llm
 
-    def run(self, goal: Goal) -> OptimizedGoal:
-        return self.chain.invoke({"goal": goal.text})
+    def run(self, query: str) -> OptimizedGoal:
+        return self.chain.invoke({"query": query})
 
 
 def main():
@@ -57,10 +57,10 @@ def main():
     )
 
     passive_goal_creator = PassiveGoalCreator(llm=llm)
-    goal: Goal = passive_goal_creator.run(args.task)
+    goal: Goal = passive_goal_creator.run(query=args.task)
 
     prompt_optimizer = PromptOptimizer(llm=llm)
-    optimised_goal: OptimizedGoal = prompt_optimizer.run(goal=goal)
+    optimised_goal: OptimizedGoal = prompt_optimizer.run(query=goal.text)
 
     print(f"最適化された目標: {optimised_goal.text}")
 
