@@ -28,14 +28,14 @@ class TasksWithRoles(BaseModel):
 
 
 class AgentState(BaseModel):
-    query: str = Field(..., description="ユーザーが最初に入力したクエリ")
+    query: str = Field(..., description="ユーザーが入力したクエリ")
     tasks: list[Task] = Field(
-        default_factory=list, description="実行すべきタスクのリスト"
+        default_factory=list, description="実行するタスクのリスト"
     )
+    current_task_index: int = Field(default=0, description="現在実行中のタスクの番号")
     results: Annotated[list[str], operator.add] = Field(
         default_factory=list, description="実行済みタスクの結果リスト"
     )
-    current_task_index: int = Field(default=0, description="現在実行中のタスクの番号")
     final_report: str = Field(default="", description="最終的な出力結果")
 
 

@@ -50,7 +50,6 @@ class QueryDecomposer:
             "要件:\n"
             "1. 以下の行動だけで目標を達成すること。決して指定された以外の行動をとらないこと。\n"
             "   - インターネットを利用して、目標を達成するための調査を行う。\n"
-            "   - ユーザーのためのレポートを生成する。\n"
             "2. 各タスクは具体的かつ詳細に記載されており、単独で実行ならびに検証可能な情報を含めること。一切抽象的な表現を含まないこと。\n"
             "3. タスクは実行可能な順序でリスト化すること。\n"
             "4. タスクは日本語で出力すること。\n"
@@ -67,24 +66,25 @@ class TaskExecutor:
 
     def run(self, task: str) -> str:
         agent = create_react_agent(self.llm, self.tools)
-        result = agent.invoke(self._create_task_message(task))
+        result = agent.invoke(
+            {
+                "messages": [
+                    (
+                        "human",
+                        (
+                            "次のタスクを実行し、詳細な回答を提供してください。\n\n"
+                            f"タスク: {task}\n\n"
+                            "要件:\n"
+                            "1. 必要に応じて提供されたツールを使用してください。\n"
+                            "2. 実行は徹底的かつ包括的に行ってください。\n"
+                            "3. 可能な限り具体的な事実やデータを提供してください。\n"
+                            "4. 発見した内容を明確に要約してください。\n"
+                        ),
+                    )
+                ]
+            }
+        )
         return result["messages"][-1].content
-
-    @staticmethod
-    def _create_task_message(task: str) -> dict[str, Any]:
-        return {
-            "messages": [
-                (
-                    "human",
-                    f"次のタスクを実行し、詳細な回答を提供してください。\n\nタスク: {task}\n\n"
-                    "要件:\n"
-                    "1. 必要に応じて提供されたツールを使用してください。\n"
-                    "2. 実行は徹底的かつ包括的に行ってください。\n"
-                    "3. 可能な限り具体的な事実やデータを提供してください。\n"
-                    "4. 発見した内容を明確に要約してください。\n",
-                )
-            ]
-        }
 
 
 class ResultAggregator:
@@ -157,7 +157,7 @@ class SinglePathPlanGeneration:
 
     def _execute_task(self, state: SinglePathPlanGenerationState) -> dict[str, Any]:
         current_task = state.tasks[state.current_task_index]
-        result = self.task_executor.run(current_task)
+        result = self.task_executor.run(task=current_task)
         return {
             "results": [result],
             "current_task_index": state.current_task_index + 1,

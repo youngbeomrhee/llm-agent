@@ -35,15 +35,13 @@ class DecomposedTasks(BaseModel):
     )
 
 
-class TaskExecutionState(BaseModel):
+class ReflectiveAgentState(BaseModel):
     query: str = Field(..., description="ユーザーが最初に入力したクエリ")
     optimized_goal: str = Field(default="", description="最適化された目標")
     optimized_response: str = Field(
         default="", description="最適化されたレスポンス定義"
     )
-    tasks: DecomposedTasks = Field(
-        default_factory=DecomposedTasks, description="実行するタスクのリスト"
-    )
+    tasks: list[str] = Field(default_factory=list, description="実行するタスクのリスト")
     current_task_index: int = Field(default=0, description="現在実行中のタスクの番号")
     results: Annotated[list[str], operator.add] = Field(
         default_factory=list, description="実行済みタスクの結果リスト"
@@ -96,26 +94,22 @@ class QueryDecomposer:
     def run(self, query: str) -> DecomposedTasks:
         relevant_reflections = self.reflection_manager.get_relevant_reflections(query)
         reflection_text = format_reflections(relevant_reflections)
-        prompt = self._create_decomposition_prompt()
-        chain = prompt | self.llm
-        tasks = chain.invoke({"query": query, "reflections": reflection_text})
-        return tasks
-
-    def _create_decomposition_prompt(self) -> ChatPromptTemplate:
-        return ChatPromptTemplate.from_template(
+        prompt = ChatPromptTemplate.from_template(
             f"CURRENT_DATE: {self.current_date}\n"
             "-----\n"
             "タスク: 与えられた目標を具体的で実行可能なタスクに分解してください。\n"
             "要件:\n"
             "1. 以下の行動だけで目標を達成すること。決して指定された以外の行動をとらないこと。\n"
             "   - インターネットを利用して、目標を達成するための調査を行う。\n"
-            "   - ユーザーのためのレポートを生成する。\n"
             "2. 各タスクは具体的かつ詳細に記載されており、単独で実行ならびに検証可能な情報を含めること。一切抽象的な表現を含まないこと。\n"
             "3. タスクは実行可能な順序でリスト化すること。\n"
             "4. タスクは日本語で出力すること。\n"
             "5. タスクを作成する際に以下の過去のふりかえりを考慮すること:\n{reflections}\n\n"
             "目標: {query}"
         )
+        chain = prompt | self.llm
+        tasks = chain.invoke({"query": query, "reflections": reflection_text})
+        return tasks
 
 
 class TaskExecutor:
@@ -129,26 +123,25 @@ class TaskExecutor:
         relevant_reflections = self.reflection_manager.get_relevant_reflections(task)
         reflection_text = format_reflections(relevant_reflections)
         agent = create_react_agent(self.llm, self.tools)
-        result = agent.invoke(self._create_task_message(task, reflection_text))
+        result = agent.invoke(
+            {
+                "messages": [
+                    (
+                        "human",
+                        f"CURRENT_DATE: {self.current_date}\n"
+                        "-----\n"
+                        f"次のタスクを実行し、詳細な回答を提供してください。\n\nタスク: {task}\n\n"
+                        "要件:\n"
+                        "1. 必要に応じて提供されたツールを使用すること。\n"
+                        "2. 実行において徹底的かつ包括的であること。\n"
+                        "3. 可能な限り具体的な事実やデータを提供すること。\n"
+                        "4. 発見事項を明確に要約すること。\n"
+                        f"5. 以下の過去のふりかえりを考慮すること:\n{reflection_text}\n",
+                    )
+                ]
+            }
+        )
         return result["messages"][-1].content
-
-    def _create_task_message(self, task: str, reflection_text: str) -> dict[str, Any]:
-        return {
-            "messages": [
-                (
-                    "human",
-                    f"CURRENT_DATE: {self.current_date}\n"
-                    "-----\n"
-                    f"次のタスクを実行し、詳細な回答を提供してください。\n\nタスク: {task}\n\n"
-                    "要件:\n"
-                    "1. 必要に応じて提供されたツールを使用すること。\n"
-                    "2. 実行において徹底的かつ包括的であること。\n"
-                    "3. 可能な限り具体的な事実やデータを提供すること。\n"
-                    "4. 発見事項を明確に要約すること。\n"
-                    f"5. 以下の過去のふりかえりを考慮すること:\n{reflection_text}\n",
-                )
-            ]
-        }
 
 
 class ResultAggregator:
@@ -216,7 +209,7 @@ class ReflectiveAgent:
         self.graph = self._create_graph()
 
     def _create_graph(self) -> StateGraph:
-        graph = StateGraph(TaskExecutionState)
+        graph = StateGraph(ReflectiveAgentState)
         graph.add_node("goal_setting", self._goal_setting)
         graph.add_node("decompose_query", self._decompose_query)
         graph.add_node("execute_task", self._execute_task)
@@ -240,7 +233,7 @@ class ReflectiveAgent:
         graph.add_edge("aggregate_results", END)
         return graph.compile()
 
-    def _goal_setting(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _goal_setting(self, state: ReflectiveAgentState) -> dict[str, Any]:
         optimized_goal: str = self.reflective_goal_creator.run(query=state.query)
         optimized_response: str = self.reflective_response_optimizer.run(
             query=optimized_goal
@@ -250,17 +243,17 @@ class ReflectiveAgent:
             "optimized_response": optimized_response,
         }
 
-    def _decompose_query(self, state: TaskExecutionState) -> dict[str, Any]:
-        tasks = self.query_decomposer.run(query=state.optimized_goal)
-        return {"tasks": tasks}
+    def _decompose_query(self, state: ReflectiveAgentState) -> dict[str, Any]:
+        tasks: DecomposedTasks = self.query_decomposer.run(query=state.optimized_goal)
+        return {"tasks": tasks.values}
 
-    def _execute_task(self, state: TaskExecutionState) -> dict[str, Any]:
-        current_task = state.tasks.values[state.current_task_index]
+    def _execute_task(self, state: ReflectiveAgentState) -> dict[str, Any]:
+        current_task = state.tasks[state.current_task_index]
         result = self.task_executor.run(task=current_task)
         return {"results": [result], "current_task_index": state.current_task_index}
 
-    def _reflect_on_task(self, state: TaskExecutionState) -> dict[str, Any]:
-        current_task = state.tasks.values[state.current_task_index]
+    def _reflect_on_task(self, state: ReflectiveAgentState) -> dict[str, Any]:
+        current_task = state.tasks[state.current_task_index]
         current_result = state.results[-1]
         reflection = self.task_reflector.run(task=current_task, result=current_result)
         return {
@@ -270,7 +263,7 @@ class ReflectiveAgent:
             ),
         }
 
-    def _should_retry_or_continue(self, state: TaskExecutionState) -> str:
+    def _should_retry_or_continue(self, state: ReflectiveAgentState) -> str:
         latest_reflection_id = state.reflection_ids[-1]
         latest_reflection = self.reflection_manager.get_reflection(latest_reflection_id)
         if (
@@ -279,15 +272,15 @@ class ReflectiveAgent:
             and state.retry_count < self.max_retries
         ):
             return "retry"
-        elif state.current_task_index < len(state.tasks.values) - 1:
+        elif state.current_task_index < len(state.tasks) - 1:
             return "continue"
         else:
             return "finish"
 
-    def _update_task_index(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _update_task_index(self, state: ReflectiveAgentState) -> dict[str, Any]:
         return {"current_task_index": state.current_task_index + 1}
 
-    def _aggregate_results(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _aggregate_results(self, state: ReflectiveAgentState) -> dict[str, Any]:
         final_output = self.result_aggregator.run(
             query=state.optimized_goal,
             results=state.results,
@@ -297,7 +290,7 @@ class ReflectiveAgent:
         return {"final_output": final_output}
 
     def run(self, query: str) -> str:
-        initial_state = TaskExecutionState(query=query)
+        initial_state = ReflectiveAgentState(query=query)
         final_state = self.graph.invoke(initial_state, {"recursion_limit": 1000})
         return final_state.get("final_output", "エラー: 出力に失敗しました。")
 
