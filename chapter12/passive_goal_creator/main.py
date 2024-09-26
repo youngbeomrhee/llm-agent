@@ -1,6 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 
 
 class Goal(BaseModel):
@@ -11,33 +11,26 @@ class Goal(BaseModel):
         return f"{self.description}"
 
 
-class Goals(BaseModel):
-    goals: list[Goal] = Field(default=[], description="目標のリスト")
-
-    @property
-    def text(self) -> str:
-        return "\n".join([goal.text for goal in self.goals])
-
-
 class PassiveGoalCreator:
     def __init__(
         self,
         llm: ChatOpenAI,
     ):
-        self.llm = llm.with_structured_output(Goals)
+        self.llm = llm
 
-        self.prompt = ChatPromptTemplate.from_template(
+    def run(self, query: str) -> Goal:
+        prompt = ChatPromptTemplate.from_template(
             "ユーザーの入力を分析し、明確で実行可能な目標を生成してください。\n"
             "要件:\n"
-            "1. 各目標は具体的かつ明確であり、実行可能なレベルで詳細化されている必要があります。\n"
-            "2. 3-5個の目標を生成してください。\n"
-            "ユーザーの入力: {user_input}\n\n"
-            "生成された目標:"
+            "1. 目標は具体的かつ明確であり、実行可能なレベルで詳細化されている必要があります。\n"
+            "2. あなたが実行可能な行動は以下の行動だけです。\n"
+            "   - インターネットを利用して、目標を達成するための調査を行う。\n"
+            "   - ユーザーのためのレポートを生成する。\n"
+            "3. 決して2.以外の行動を取ってはいけません。\n"
+            "ユーザーの入力: {query}"
         )
-        self.chain = self.prompt | self.llm
-
-    def run(self, user_input: str) -> Goals:
-        return self.chain.invoke({"user_input": user_input})
+        chain = prompt | self.llm.with_structured_output(Goal)
+        return chain.invoke({"query": query})
 
 
 def main():
@@ -48,7 +41,7 @@ def main():
     settings = Settings()
 
     parser = argparse.ArgumentParser(
-        description="PassiveGoalCreatorを利用して目標のリストを生成します"
+        description="PassiveGoalCreatorを利用して目標を生成します"
     )
     parser.add_argument("--task", type=str, required=True, help="実行するタスク")
     args = parser.parse_args()
@@ -56,11 +49,10 @@ def main():
     llm = ChatOpenAI(
         model=settings.openai_smart_model, temperature=settings.temperature
     )
-    agent = PassiveGoalCreator(llm=llm)
-    result: Goals = agent.run(args.task)
+    goal_creator = PassiveGoalCreator(llm=llm)
+    result: Goal = goal_creator.run(query=args.task)
 
-    for index, goal in enumerate(result.goals, start=1):
-        print(f"目標{index}: {goal.text}")
+    print(f"{result.text}")
 
 
 if __name__ == "__main__":

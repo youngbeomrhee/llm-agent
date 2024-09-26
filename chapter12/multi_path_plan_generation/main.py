@@ -1,13 +1,17 @@
 import operator
+from datetime import datetime
 from typing import Annotated, Any
 
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
+from passive_goal_creator.main import Goal, PassiveGoalCreator
+from prompt_optimizer.main import OptimizedGoal, PromptOptimizer
+from pydantic import BaseModel, Field
+from response_optimizer.main import ResponseOptimizer
 
 
 class TaskOption(BaseModel):
@@ -33,38 +37,45 @@ class DecomposedTasks(BaseModel):
     )
 
 
-class TaskExecutionState(BaseModel):
-    original_query: str = Field(..., description="ユーザーの初期クエリ")
+class MultiPathPlanGenerationState(BaseModel):
+    query: str = Field(..., description="ユーザーが入力したクエリ")
+    optimized_goal: str = Field(default="", description="最適化された目標")
+    optimized_response: str = Field(default="", description="最適化されたレスポンス")
     tasks: DecomposedTasks = Field(
         default_factory=DecomposedTasks,
         description="複数のオプションを持つタスクのリスト",
     )
     current_task_index: int = Field(default=0, description="現在のタスクのインデックス")
     chosen_options: Annotated[list[int], operator.add] = Field(
-        default_factory=list, description="各タスクの選択されたオプションのインデックス"
+        default_factory=list, description="各タスクで選択されたオプションのインデックス"
     )
     results: Annotated[list[str], operator.add] = Field(
         default_factory=list, description="実行されたタスクの結果"
     )
-    final_output: str = Field(default="", description="最終的な集約出力")
+    final_output: str = Field(default="", description="最終出力")
 
 
 class QueryDecomposer:
     def __init__(self, llm: ChatOpenAI):
-        self.llm = llm.with_structured_output(DecomposedTasks)
+        self.llm = llm
+        self.current_date = datetime.now().strftime("%Y-%m-%d")
 
     def run(self, query: str) -> DecomposedTasks:
         prompt = ChatPromptTemplate.from_template(
-            "タスク: 以下のクエリを3〜5個の高レベルタスクに分解し、各タスクに2〜3個の具体的なオプションを提供してください。\n"
+            f"CURRENT_DATE: {self.current_date}\n"
+            "-----\n"
+            "タスク: 与えられた目標を3〜5個の高レベルタスクに分解し、各タスクに2〜3個の具体的なオプションを提供してください。\n"
             "要件:\n"
-            "1. 各高レベルタスクは明確な目的を持つこと。\n"
-            "2. 各タスクに2〜3個の異なるアプローチまたはオプションを提供すること。\n"
-            "3. タスクは論理的な順序で並べること。\n"
-            "4. 各タスクとオプションは動詞で始めること。\n"
+            "1. 以下の行動だけで目標を達成すること。決して指定された以外の行動をとらないこと。\n"
+            "   - インターネットを利用して、目標を達成するための調査を行う。\n"
+            "2. 各高レベルタスクは具体的かつ詳細に記載されており、単独で実行ならびに検証可能な情報を含めること。一切抽象的な表現を含まないこと。\n"
+            "3. 各項レベルタスクに2〜3個の異なるアプローチまたはオプションを提供すること。\n"
+            "4. タスクは実行可能な順序でリスト化すること。\n"
             "5. タスクは日本語で出力すること。\n\n"
-            "クエリ: {query}"
+            "REMEMBER: 実行できないタスク、ならびに選択肢は絶対に作成しないでください。\n\n"
+            "目標: {query}"
         )
-        chain = prompt | self.llm
+        chain = prompt | self.llm.with_structured_output(DecomposedTasks)
         return chain.invoke({"query": query})
 
 
@@ -81,7 +92,9 @@ class OptionPresenter:
             print(f"{i + 1}. {option.description}")
 
         choice_prompt = ChatPromptTemplate.from_template(
-            "タスク: 与えられたタスクとオプションに基づいて、最適なオプションを選択してください。必ず番号のみで回答してください。\n"
+            "タスク: 与えられたタスクとオプションに基づいて、最適なオプションを選択してください。必ず番号のみで回答してください。\n\n"
+            "なお、あなたは次の行動しかできません。\n"
+            "- インターネットを利用して、目標を達成するための調査を行う。\n\n"
             "タスク: {task_name}\n"
             "オプション:\n{options_text}\n"
             "選択 (1-{num_options}): "
@@ -136,32 +149,25 @@ class ResultAggregator:
 
     def run(
         self,
-        original_query: str,
+        query: str,
+        response_definition: str,
         tasks: list[Task],
         chosen_options: list[int],
         results: list[str],
     ) -> str:
         prompt = ChatPromptTemplate.from_template(
-            "タスク: 以下の情報に基づいて、包括的で一貫性のある回答を作成してください。\n"
-            "要件:\n"
-            "1. 提供されたすべての情報を適切な構成で総合すること。\n"
-            "2. 回答が元のクエリに直接対応していることを確認すること。\n"
-            "3. 実行された各タスクからの主要なポイントと発見事項を含めること。\n"
-            "4. 各タスクで選択されたアプローチを強調すること。\n"
-            "5. 最後に結論またはまとめを提供すること。\n"
-            "6. 回答は詳細かつ簡潔で、300〜350語程度を目指すこと。\n"
-            "7. 回答は日本語で行うこと。\n\n"
-            "元のクエリ: {original_query}\n\n"
-            "実行されたタスクと結果:\n{task_results}\n\n"
-            "総合的な回答:"
+            "与えられた目標:\n{query}\n\n"
+            "調査結果:\n{task_results}\n\n"
+            "与えられた目標に対し、調査結果を用いて、以下の指示に基づいてレスポンスを生成してください。\n"
+            "{response_definition}"
         )
-
         task_results = self._format_task_results(tasks, chosen_options, results)
         chain = prompt | self.llm | StrOutputParser()
         return chain.invoke(
             {
-                "original_query": original_query,
+                "query": query,
                 "task_results": task_results,
+                "response_definition": response_definition,
             }
         )
 
@@ -186,22 +192,25 @@ class MultiPathPlanGeneration:
         self,
         llm: ChatOpenAI,
     ):
-        self.query_decomposer = QueryDecomposer(llm=llm)
-        self.option_presenter = OptionPresenter(llm=llm)
-        self.task_executor = TaskExecutor(llm=llm)
-        self.result_aggregator = ResultAggregator(llm=llm)
+        self.llm = llm
+        self.passive_goal_creator = PassiveGoalCreator(llm=self.llm)
+        self.prompt_optimizer = PromptOptimizer(llm=self.llm)
+        self.response_optimizer = ResponseOptimizer(llm=self.llm)
+        self.query_decomposer = QueryDecomposer(llm=self.llm)
+        self.option_presenter = OptionPresenter(llm=self.llm)
+        self.task_executor = TaskExecutor(llm=self.llm)
+        self.result_aggregator = ResultAggregator(llm=self.llm)
         self.graph = self._create_graph()
 
     def _create_graph(self) -> StateGraph:
-        graph = StateGraph(TaskExecutionState)
-
+        graph = StateGraph(MultiPathPlanGenerationState)
+        graph.add_node("goal_setting", self._goal_setting)
         graph.add_node("decompose_query", self._decompose_query)
         graph.add_node("present_options", self._present_options)
         graph.add_node("execute_task", self._execute_task)
         graph.add_node("aggregate_results", self._aggregate_results)
-
-        graph.set_entry_point("decompose_query")
-
+        graph.set_entry_point("goal_setting")
+        graph.add_edge("goal_setting", "decompose_query")
         graph.add_edge("decompose_query", "present_options")
         graph.add_edge("present_options", "execute_task")
         graph.add_conditional_edges(
@@ -213,35 +222,50 @@ class MultiPathPlanGeneration:
 
         return graph.compile()
 
-    def _decompose_query(self, state: TaskExecutionState) -> dict[str, Any]:
-        tasks = self.query_decomposer.run(state.original_query)
+    def _goal_setting(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
+        # プロンプト最適化
+        goal: Goal = self.passive_goal_creator.run(query=state.query)
+        optimized_goal: OptimizedGoal = self.prompt_optimizer.run(query=goal.text)
+        # レスポンス最適化
+        optimized_response: str = self.response_optimizer.run(query=optimized_goal.text)
+        return {
+            "optimized_goal": optimized_goal.text,
+            "optimized_response": optimized_response,
+        }
+
+    def _decompose_query(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
+        tasks = self.query_decomposer.run(query=state.optimized_goal)
         return {"tasks": tasks}
 
-    def _present_options(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _present_options(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
-        chosen_option = self.option_presenter.run(current_task)
+        chosen_option = self.option_presenter.run(task=current_task)
         return {"chosen_options": [chosen_option]}
 
-    def _execute_task(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _execute_task(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         current_task = state.tasks.values[state.current_task_index]
         chosen_option = current_task.options[state.chosen_options[-1]]
-        result = self.task_executor.run(current_task, chosen_option)
+        result = self.task_executor.run(
+            task=current_task,
+            chosen_option=chosen_option,
+        )
         return {
             "results": [result],
             "current_task_index": state.current_task_index + 1,
         }
 
-    def _aggregate_results(self, state: TaskExecutionState) -> dict[str, Any]:
+    def _aggregate_results(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
         final_output = self.result_aggregator.run(
-            state.original_query,
-            state.tasks.values,
-            state.chosen_options,
-            state.results,
+            query=state.optimized_goal,
+            response_definition=state.optimized_response,
+            tasks=state.tasks.values,
+            chosen_options=state.chosen_options,
+            results=state.results,
         )
         return {"final_output": final_output}
 
     def run(self, query: str) -> str:
-        initial_state = TaskExecutionState(original_query=query)
+        initial_state = MultiPathPlanGenerationState(query=query)
         final_state = self.graph.invoke(initial_state, {"recursion_limit": 1000})
         return final_state.get("final_output", "最終的な回答の生成に失敗しました。")
 
@@ -263,7 +287,7 @@ def main():
         model=settings.openai_smart_model, temperature=settings.temperature
     )
     agent = MultiPathPlanGeneration(llm=llm)
-    result = agent.run(args.task)
+    result = agent.run(query=args.task)
     print("\n=== 最終出力 ===")
     print(result)
 
