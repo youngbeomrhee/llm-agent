@@ -13,6 +13,7 @@
 | 第 9 章 LangGraph で作る AI エージェント実践入門 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter09/notebook.ipynb) |
 | 第 10 章 要件定義書生成 AI エージェントの開発 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter10/notebook.ipynb) |
 | 第 12 章 LangChain/LangGraphで実装するエージェントデザインパターン | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter12/notebook.ipynb) |
+
 ## 動作確認環境
 
 本書のソースコードは以下の環境・バージョンで動作確認しました。
