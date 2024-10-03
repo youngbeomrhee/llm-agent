@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import ConfigurableField
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
@@ -81,7 +82,9 @@ class QueryDecomposer:
 
 class OptionPresenter:
     def __init__(self, llm: ChatOpenAI):
-        self.llm = llm
+        self.llm = llm.configurable_fields(
+            max_tokens=ConfigurableField(id="max_tokens")
+        )
 
     def run(self, task: Task) -> int:
         task_name = task.task_name
@@ -103,7 +106,11 @@ class OptionPresenter:
         options_text = "\n".join(
             f"{i+1}. {option.description}" for i, option in enumerate(options)
         )
-        chain = choice_prompt | self.llm | StrOutputParser()
+        chain = (
+            choice_prompt
+            | self.llm.with_config(configurable=dict(max_tokens=1))
+            | StrOutputParser()
+        )
         choice_str = chain.invoke(
             {
                 "task_name": task_name,
