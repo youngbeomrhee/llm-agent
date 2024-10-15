@@ -4,7 +4,7 @@
 
 https://www.amazon.co.jp/dp/4297145308
 
-![cover](assets/cover.jpg)
+<img src="assets/cover.jpg" width="50%" />
 
 ## 各章のソースコード
 
