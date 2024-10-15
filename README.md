@@ -4,6 +4,8 @@
 
 https://www.amazon.co.jp/dp/4297145308
 
+![cover](assets/cover.jpg)
+
 ## 各章のソースコード
 
 | 章                                                                  | ソースコード                                                                                                                                                                          |
