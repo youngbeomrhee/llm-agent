@@ -5,6 +5,9 @@
 - p2「1. 外部ソース統合型 Q&A サービス（デスクトップサーチ）」
   - 誤) デスクトップサーチ
   - 正) デスクトップリサーチ
+- p74 最初のソースコードの最終行
+  - 誤) `print(prompt_value)`
+  - 正) `print(prompt_value.text)`
 - p97 本文下から 5 行目
   - 誤) docs/extras/integrations/providers/aws_s3.mdx
   - 正) docs/extras/integrations/providers/aws.mdx
