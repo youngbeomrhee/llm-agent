@@ -10,7 +10,7 @@
   - 正) `print(prompt_value.text)`
 - p97 本文下から 5 行目
   - 誤) docs/extras/integrations/providers/aws_s3.mdx
-  - 正) docs/extras/integrations/providers/aws.mdx
+  - 正) docs/docs/integrations/platforms/aws.mdx
 - p113「RunnableLambda への自動変換」の項のソースコードの次の行
   - 誤) uppser
   - 正) upper
