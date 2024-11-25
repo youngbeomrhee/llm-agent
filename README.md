@@ -55,9 +55,10 @@ https://platform.openai.com/docs/guides/rate-limits/usage-tiers
 
 https://github.com/GenerativeAgents/agent-book/issues
 
-## 正誤表
+## 書籍刊行後のアップデート・正誤表
 
-[正誤表](./errata.md)
+- [書籍刊行後のアップデート](./updates.md)
+- [正誤表](./errata.md)
 
 ## リンク
 
