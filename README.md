@@ -34,6 +34,17 @@ Python パッケージの動作確認済みバージョンは、各章のディ�
 
 ## 既知のエラー
 
+### `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`
+
+openai パッケージが依存する httpx のアップデートにより、`openai==1.40.6` を使用する箇所で `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'` というエラーが発生するようになりました。
+
+このエラーは、`!pip install httpx==0.27.2` のように、httpx の特定バージョンをインストールすることで回避することができます。
+
+なお、Google Colab で一度上記のエラーに遭遇したあとで `!pip install httpx==0.27.2` のようにパッケージをインストールし直した場合、以下のどちらかの操作を実施する必要があります。
+
+- Google Colab の「ランタイム」から「セッションを再起動する」を実行する
+- 「ランタイムを接続解除して削除」を実行してパッケージのインストールからやり直す
+
 ### 「7.4 Ragas による合成テストデータの生成」における RateLimitError
 
 「7.4 Ragas による合成テストデータの生成」において、gpt-4o を使用すると OpenAI API の Usage tier 次第で RateLimitError が発生することが報告されています。
