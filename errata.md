@@ -21,3 +21,9 @@
 - p376 本文上から 5 行目
   - 誤) 現在時刻
   - 正) 現在の日付
+
+## 初版 第 3 刷
+
+- p170 本文最終行
+  - 誤) Context precision と Answer similarity の 2 つだけを使用することにします。
+  - 正) Context precision と Answer relevancy の 2 つだけを使用することにします。
