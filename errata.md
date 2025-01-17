@@ -22,8 +22,11 @@
   - 誤) 現在時刻
   - 正) 現在の日付
 
-## 初版 第 3 刷
+## 初版 第 3 刷 (第 4 刷で修正)
 
+- p147 2 つ目のコードブロック 10 行目
+  - 誤) `raise ValueError(f"Unknown retriever: {retriever}")`
+  - 正) `raise ValueError(f"Unknown route: {route}")`
 - p170 本文最終行
   - 誤) Context precision と Answer similarity の 2 つだけを使用することにします。
   - 正) Context precision と Answer relevancy の 2 つだけを使用することにします。
