@@ -30,3 +30,9 @@
 - p170 本文最終行
   - 誤) Context precision と Answer similarity の 2 つだけを使用することにします。
   - 正) Context precision と Answer relevancy の 2 つだけを使用することにします。
+
+## 初版 第 4 刷
+
+- p171 図7.7
+  - 誤) Answer collectness
+  - 正) Answer correctness
