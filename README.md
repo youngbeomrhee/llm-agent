@@ -1,77 +1,77 @@
-# LangChain と LangGraph による RAG・AI エージェント［実践］入門
+# LangChain과 LangGraph를 활용한 RAG·AI 에이전트 [실전] 입문(가제)
 
-「LangChain と LangGraph による RAG・AI エージェント［実践］入門」の GitHub リポジトリです。
+「LangChain과 LangGraph를 활용한 RAG·AI 에이전트 [실전] 입문(가제)」의 GitHub 저장소입니다.
 
 https://www.amazon.co.jp/dp/4297145308
 
 <img src="assets/cover.jpg" width="50%" />
 
-## 各章のソースコード
+## 각 장의 소스 코드
 
-| 章                                                                  | ソースコード                                                                                                                                                                          |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 第 1 章 LLM アプリケーション開発の基礎                              | -                                                                                                                                                                                     |
-| 第 2 章 OpenAI の チャット API の基礎                               | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter02/notebook.ipynb) |
-| 第 3 章 プロンプトエンジニアリング                                  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter03/notebook.ipynb) |
-| 第 4 章 LangChain の基礎                                            | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter04/notebook.ipynb) |
-| 第 5 章 LangChain Expression Language（LCEL）徹底解説               | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter05/notebook.ipynb) |
-| 第 6 章 Advanced RAG                                                | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter06/notebook.ipynb) |
-| 第 7 章 LangSmith を使った RAG アプリケーションの評価               | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter07/notebook.ipynb) |
-| 第 8 章 AI エージェントとは                                         | -                                                                                                                                                                                     |
-| 第 9 章 LangGraph で作る AI エージェント実践入門                    | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter09/notebook.ipynb) |
-| 第 10 章 要件定義書生成 AI エージェントの開発                       | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter10/notebook.ipynb) |
-| 第 11 章 エージェントデザインパターン                               | -                                                                                                                                                                                     |
-| 第 12 章 LangChain/LangGraph で実装するエージェントデザインパターン | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GenerativeAgents/agent-book/blob/main/chapter12/notebook.ipynb) |
+| 장                                                               | 소스 코드                                                                                                                                                                          |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 제1장 LLM 애플리케이션 개발의 기초                               | -                                                                                                                                                                                  |
+| 제2장 OpenAI의 챗 API 기초                                       | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ychoi-kr/llm-agent/blob/main/chapter02/notebook.ipynb) |
+| 제3장 프롬프트 엔지니어링                                        | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ychoi-kr/llm-agent/blob/main/chapter03/notebook.ipynb) |
+| 제4장 LangChain의 기초                                           | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ychoi-kr/llm-agent/blob/main/chapter04/notebook.ipynb) |
+| 제5장 LangChain Expression Language(LCEL) 심층 해설              | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ychoi-kr/llm-agent/blob/main/chapter05/notebook.ipynb) |
+| 제6장 Advanced RAG                                               | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ychoi-kr/llm-agent/blob/main/chapter06/notebook.ipynb) |
+| 제7장 LangSmith를 활용한 RAG 애플리케이션 평가                   | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ychoi-kr/llm-agent/blob/main/chapter07/notebook.ipynb) |
+| 제8장 AI 에이전트란                                              | -                                                                                                                                                                                  |
+| 제9장 LangGraph로 만드는 AI 에이전트 실전 입문                   | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ychoi-kr/llm-agent/blob/main/chapter09/notebook.ipynb) |
+| 제10장 요구사항 정의서 생성 AI 에이전트 개발                     | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ychoi-kr/llm-agent/blob/main/chapter10/notebook.ipynb) |
+| 제11장 에이전트 디자인 패턴                                      | -                                                                                                                                                                                  |
+| 제12장 LangChain/LangGraph로 구현하는 에이전트 디자인 패턴       | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ychoi-kr/llm-agent/blob/main/chapter12/notebook.ipynb) |
 
-## 動作確認環境
+## 작동 확인 환경
 
-本書のソースコードは以下の環境・バージョンで動作確認しました。
+본 책의 소스 코드는 다음 환경·버전에서 작동을 확인했습니다.
 
 - Google Colab
 - Python 3.10.12
 
-Python パッケージの動作確認済みバージョンは、各章のディレクトリの requirements.txt を参照してください。
+Python 패키지의 작동 확인된 버전은 각 장의 디렉터리에 있는 requirements.txt를 참조하세요.
 
-## 既知のエラー
+## 알려진 오류
 
 ### `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`
 
-openai パッケージが依存する httpx のアップデートにより、`openai==1.40.6` を使用する箇所で `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'` というエラーが発生するようになりました。
+openai 패키지가 의존하는 httpx의 업데이트로 인해 `openai==1.40.6`을 사용하는 부분에서 `TypeError: Client.__init__() got an unexpected keyword argument 'proxies'`라는 오류가 발생하게 되었습니다.
 
-このエラーは、`!pip install httpx==0.27.2` のように、httpx の特定バージョンをインストールすることで回避することができます。
+이 오류는 `!pip install httpx==0.27.2`와 같이 httpx의 특정 버전을 설치하여 해결할 수 있습니다.
 
-なお、Google Colab で一度上記のエラーに遭遇したあとで `!pip install httpx==0.27.2` のようにパッケージをインストールし直した場合、以下のどちらかの操作を実施する必要があります。
+Google Colab에서 위 오류를 만난 후 `!pip install httpx==0.27.2`와 같이 패키지를 다시 설치한 경우, 다음 두 가지 작업 중 하나를 수행해야 합니다.
 
-- Google Colab の「ランタイム」から「セッションを再起動する」を実行する
-- 「ランタイムを接続解除して削除」を実行してパッケージのインストールからやり直す
+- Google Colab의 "런타임"에서 "세션 재시작"을 실행
+- "런타임 연결 해제 및 삭제"를 실행하고 패키지 설치부터 다시 시작
 
-### 「7.4 Ragas による合成テストデータの生成」における RateLimitError
+### "7.4 Ragas를 활용한 합성 테스트 데이터 생성"에서의 RateLimitError
 
-「7.4 Ragas による合成テストデータの生成」において、gpt-4o を使用すると OpenAI API の Usage tier 次第で RateLimitError が発生することが報告されています。
+"7.4 Ragas를 활용한 합성 테스트 데이터 생성"에서 gpt-4o를 사용할 때 OpenAI API의 Usage tier에 따라 RateLimitError가 발생할 수 있습니다.
 
-OpenAI API の Usage tier については公式ドキュメントの以下のページを参照してください。
+OpenAI API의 Usage tier에 관한 자세한 내용은a 공식 문서의 다음 페이지를 참조하세요.
 
 https://platform.openai.com/docs/guides/rate-limits/usage-tiers
 
-このエラーが発生した場合は、以下のどちらかの対応を実施してください。
+이 오류가 발생한 경우 다음 두 가지 방법 중 하나로 대응하세요.
 
-1. 同じ Tier でも gpt-4o よりレートリミットの高い gpt-4o-mini を使用する
-   - この場合、生成される合成テストデータの品質は低くなることが想定されます
-2. 課金などにより Tier を上げる
-   - Tier 2 で RateLimitError が発生しないことを確認済みです (2024 年 10 月 31 日時点)
+1. 같은 Tier에서도 gpt-4o보다 레이트 리밋이 높은 gpt-4o-mini 사용
+   - 이 경우 생성되는 합성 테스트 데이터의 품질이 낮아질 수 있습니다
+2. 과금 등을 통해 Tier 업그레이드
+   - Tier 2에서는 RateLimitError가 발생하지 않는 것을 확인했습니다(2024년 10월 31일 기준)
 
-## 書籍の誤り・エラーについて
+## 책의 오류·에러에 관하여
 
-書籍の誤り（誤字など）や、発生したエラーについては、GitHub の Issue からご連絡ください。
+책의 오류(오탈자 등)나 발생한 에러에 관해서는 GitHub의 Issue를 통해 알려주세요.
 
-https://github.com/GenerativeAgents/agent-book/issues
+https://github.com/ychoi-kr/llm-agent/issues
 
-## 書籍刊行後のアップデート・正誤表
+## 책 출간 후 업데이트·정오표
 
-- [書籍刊行後のアップデート](./updates.md)
-- [正誤表](./errata.md)
+- [책 출간 후 업데이트](./updates.md)
+- [정오표](./errata.md)
 
-## リンク
+## 링크
 
-- [技術評論社](https://gihyo.jp/book/2024/978-4-297-14530-9)
+- [기술평론사](https://gihyo.jp/book/2024/978-4-297-14530-9)
 - [Amazon](https://www.amazon.co.jp/dp/4297145308)
