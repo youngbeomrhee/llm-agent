@@ -1,10 +1,6 @@
 # LangChain과 LangGraph를 활용한 RAG·AI 에이전트 [실전] 입문(가제)
 
-「LangChain과 LangGraph를 활용한 RAG·AI 에이전트 [실전] 입문(가제)」의 GitHub 저장소입니다.
-
-https://www.amazon.co.jp/dp/4297145308
-
-<img src="assets/cover.jpg" width="50%" />
+《LangChain과 LangGraph를 활용한 RAG·AI 에이전트 [실전] 입문(가제)》의 GitHub 저장소입니다.
 
 ## 각 장의 소스 코드
 
@@ -49,7 +45,7 @@ Google Colab에서 위 오류를 만난 후 `!pip install httpx==0.27.2`와 같�
 
 "7.4 Ragas를 활용한 합성 테스트 데이터 생성"에서 gpt-4o를 사용할 때 OpenAI API의 Usage tier에 따라 RateLimitError가 발생할 수 있습니다.
 
-OpenAI API의 Usage tier에 관한 자세한 내용은a 공식 문서의 다음 페이지를 참조하세요.
+OpenAI API의 Usage tier에 관한 자세한 내용은 공식 문서의 다음 페이지를 참조하세요.
 
 https://platform.openai.com/docs/guides/rate-limits/usage-tiers
 
@@ -60,18 +56,3 @@ https://platform.openai.com/docs/guides/rate-limits/usage-tiers
 2. 과금 등을 통해 Tier 업그레이드
    - Tier 2에서는 RateLimitError가 발생하지 않는 것을 확인했습니다(2024년 10월 31일 기준)
 
-## 책의 오류·에러에 관하여
-
-책의 오류(오탈자 등)나 발생한 에러에 관해서는 GitHub의 Issue를 통해 알려주세요.
-
-https://github.com/ychoi-kr/llm-agent/issues
-
-## 책 출간 후 업데이트·정오표
-
-- [책 출간 후 업데이트](./updates.md)
-- [정오표](./errata.md)
-
-## 링크
-
-- [기술평론사](https://gihyo.jp/book/2024/978-4-297-14530-9)
-- [Amazon](https://www.amazon.co.jp/dp/4297145308)
