@@ -16,16 +16,16 @@ from response_optimizer.main import ResponseOptimizer
 
 
 class TaskOption(BaseModel):
-    description: str = Field(default="", description="タスクオプションの説明")
+    description: str = Field(default="", description="태스크 옵션에 대한 설명")
 
 
 class Task(BaseModel):
-    task_name: str = Field(..., description="タスクの名前")
+    task_name: str = Field(..., description="태스크 이름")
     options: list[TaskOption] = Field(
         default_factory=list,
         min_items=2,
         max_items=3,
-        description="2~3個のタスクオプション",
+        description="2~3개의 태스크 옵션",
     )
 
 
@@ -34,26 +34,26 @@ class DecomposedTasks(BaseModel):
         default_factory=list,
         min_items=3,
         max_items=5,
-        description="3~5個に分解されたタスク",
+        description="3~5개로 분해된 태스크",
     )
 
 
 class MultiPathPlanGenerationState(BaseModel):
-    query: str = Field(..., description="ユーザーが入力したクエリ")
-    optimized_goal: str = Field(default="", description="最適化された目標")
-    optimized_response: str = Field(default="", description="最適化されたレスポンス")
+    query: str = Field(..., description="사용자가 입력한 쿼리")
+    optimized_goal: str = Field(default="", description="최적화된 목표")
+    optimized_response: str = Field(default="", description="최적화된 응답")
     tasks: DecomposedTasks = Field(
         default_factory=DecomposedTasks,
-        description="複数のオプションを持つタスクのリスト",
+        description="여러 옵션을 가진 태스크 리스트",
     )
-    current_task_index: int = Field(default=0, description="現在のタスクのインデックス")
+    current_task_index: int = Field(default=0, description="현재 태스크의 인덱스")
     chosen_options: Annotated[list[int], operator.add] = Field(
-        default_factory=list, description="各タスクで選択されたオプションのインデックス"
+        default_factory=list, description="각 태스크에서 선택된 옵션의 인덱스"
     )
     results: Annotated[list[str], operator.add] = Field(
-        default_factory=list, description="実行されたタスクの結果"
+        default_factory=list, description="실행된 태스크의 결과"
     )
-    final_output: str = Field(default="", description="最終出力")
+    final_output: str = Field(default="", description="최종 출력")
 
 
 class QueryDecomposer:
@@ -65,16 +65,16 @@ class QueryDecomposer:
         prompt = ChatPromptTemplate.from_template(
             f"CURRENT_DATE: {self.current_date}\n"
             "-----\n"
-            "タスク: 与えられた目標を3〜5個の高レベルタスクに分解し、各タスクに2〜3個の具体的なオプションを提供してください。\n"
-            "要件:\n"
-            "1. 以下の行動だけで目標を達成すること。決して指定された以外の行動をとらないこと。\n"
-            "   - インターネットを利用して、目標を達成するための調査を行う。\n"
-            "2. 各高レベルタスクは具体的かつ詳細に記載されており、単独で実行ならびに検証可能な情報を含めること。一切抽象的な表現を含まないこと。\n"
-            "3. 各項レベルタスクに2〜3個の異なるアプローチまたはオプションを提供すること。\n"
-            "4. タスクは実行可能な順序でリスト化すること。\n"
-            "5. タスクは日本語で出力すること。\n\n"
-            "REMEMBER: 実行できないタスク、ならびに選択肢は絶対に作成しないでください。\n\n"
-            "目標: {query}"
+            "태스크: 주어진 목표를 3~5개의 고수준 태스크로 분해하고, 각 태스크에 2~3개의 구체적인 옵션을 제공하세요.\n"
+            "요구사항:\n"
+            "1. 다음 행동만으로 목표를 달성할 것. 절대 지정된 것 외의 행동을 취하지 말 것.\n"
+            "   - 인터넷을 이용하여 목표 달성을 위한 조사를 수행.\n"
+            "2. 각 고수준 태스크는 구체적이고 상세하게 기술되어야 하며, 독립적으로 실행 및 검증 가능한 정보를 포함할 것. 추상적인 표현을 전혀 포함하지 말 것.\n"
+            "3. 각 항목 레벨 태스크에 2~3개의 다른 접근법이나 옵션을 제공할 것.\n"
+            "4. 태스크는 실행 가능한 순서로 나열할 것.\n"
+            "5. 태스크는 한국어로 출력할 것.\n\n"
+            "기억하세요: 실행할 수 없는 태스크와 선택지는 절대로 만들지 마세요.\n\n"
+            "목표: {query}"
         )
         chain = prompt | self.llm.with_structured_output(DecomposedTasks)
         return chain.invoke({"query": query})
@@ -90,17 +90,17 @@ class OptionPresenter:
         task_name = task.task_name
         options = task.options
 
-        print(f"\nタスク: {task_name}")
+        print(f"\n태스크: {task_name}")
         for i, option in enumerate(options):
             print(f"{i + 1}. {option.description}")
 
         choice_prompt = ChatPromptTemplate.from_template(
-            "タスク: 与えられたタスクとオプションに基づいて、最適なオプションを選択してください。必ず番号のみで回答してください。\n\n"
-            "なお、あなたは次の行動しかできません。\n"
-            "- インターネットを利用して、目標を達成するための調査を行う。\n\n"
-            "タスク: {task_name}\n"
-            "オプション:\n{options_text}\n"
-            "選択 (1-{num_options}): "
+            "태스크: 주어진 태스크와 옵션을 기반으로 최적의 옵션을 선택하세요. 반드시 번호만으로 답변하세요.\n\n"
+            "참고로, 당신은 다음 행동만 할 수 있습니다.\n"
+            "- 인터넷을 이용하여 목표 달성을 위한 조사를 수행.\n\n"
+            "태스크: {task_name}\n"
+            "옵션:\n{options_text}\n"
+            "선택 (1-{num_options}): "
         )
 
         options_text = "\n".join(
@@ -118,7 +118,7 @@ class OptionPresenter:
                 "num_options": len(options),
             }
         )
-        print(f"==> エージェントの選択: {choice_str}\n")
+        print(f"==> 에이전트의 선택: {choice_str}\n")
 
         return int(choice_str.strip()) - 1
 
@@ -135,14 +135,14 @@ class TaskExecutor:
                 "messages": [
                     (
                         "human",
-                        f"以下のタスクを実行し、詳細な回答を提供してください:\n\n"
-                        f"タスク: {task.task_name}\n"
-                        f"選択されたアプローチ: {chosen_option.description}\n\n"
-                        f"要件:\n"
-                        f"1. 必要に応じて提供されたツールを使用すること。\n"
-                        f"2. 実行において徹底的かつ包括的であること。\n"
-                        f"3. 可能な限り具体的な事実やデータを提供すること。\n"
-                        f"4. 発見事項を明確にまとめること。\n",
+                        f"다음 태스크를 실행하고 상세한 답변을 제공해주세요:\n\n"
+                        f"태스크: {task.task_name}\n"
+                        f"선택된 접근법: {chosen_option.description}\n\n"
+                        f"요구사항:\n"
+                        f"1. 필요에 따라 제공된 도구를 사용할 것.\n"
+                        f"2. 실행에 있어 철저하고 포괄적일 것.\n"
+                        f"3. 가능한 한 구체적인 사실이나 데이터를 제공할 것.\n"
+                        f"4. 발견 사항을 명확하게 요약할 것.\n",
                     )
                 ]
             }
@@ -163,9 +163,9 @@ class ResultAggregator:
         results: list[str],
     ) -> str:
         prompt = ChatPromptTemplate.from_template(
-            "与えられた目標:\n{query}\n\n"
-            "調査結果:\n{task_results}\n\n"
-            "与えられた目標に対し、調査結果を用いて、以下の指示に基づいてレスポンスを生成してください。\n"
+            "주어진 목표:\n{query}\n\n"
+            "조사 결과:\n{task_results}\n\n"
+            "주어진 목표에 대해 조사 결과를 활용하여 다음 지시에 따라 응답을 생성하세요.\n"
             "{response_definition}"
         )
         task_results = self._format_task_results(tasks, chosen_options, results)
@@ -188,9 +188,9 @@ class ResultAggregator:
         ):
             task_name = task.task_name
             chosen_option_desc = task.options[chosen_option].description
-            task_results += f"タスク {i+1}: {task_name}\n"
-            task_results += f"選択されたアプローチ: {chosen_option_desc}\n"
-            task_results += f"結果: {result}\n\n"
+            task_results += f"태스크 {i+1}: {task_name}\n"
+            task_results += f"선택된 접근법: {chosen_option_desc}\n"
+            task_results += f"결과: {result}\n\n"
         return task_results
 
 
@@ -230,10 +230,10 @@ class MultiPathPlanGeneration:
         return graph.compile()
 
     def _goal_setting(self, state: MultiPathPlanGenerationState) -> dict[str, Any]:
-        # プロンプト最適化
+        # 프롬프트 최적화
         goal: Goal = self.passive_goal_creator.run(query=state.query)
         optimized_goal: OptimizedGoal = self.prompt_optimizer.run(query=goal.text)
-        # レスポンス最適化
+        # 응답 최적화
         optimized_response: str = self.response_optimizer.run(query=optimized_goal.text)
         return {
             "optimized_goal": optimized_goal.text,
@@ -274,7 +274,7 @@ class MultiPathPlanGeneration:
     def run(self, query: str) -> str:
         initial_state = MultiPathPlanGenerationState(query=query)
         final_state = self.graph.invoke(initial_state, {"recursion_limit": 1000})
-        return final_state.get("final_output", "最終的な回答の生成に失敗しました。")
+        return final_state.get("final_output", "최종 답변 생성에 실패했습니다.")
 
 
 def main():
@@ -285,9 +285,9 @@ def main():
     settings = Settings()
 
     parser = argparse.ArgumentParser(
-        description="MultiPathPlanGenerationを使用してタスクを実行します"
+        description="MultiPathPlanGeneration을 사용하여 태스크를 실행합니다"
     )
-    parser.add_argument("--task", type=str, required=True, help="実行するタスク")
+    parser.add_argument("--task", type=str, required=True, help="실행할 태스크")
     args = parser.parse_args()
 
     llm = ChatOpenAI(
@@ -295,7 +295,7 @@ def main():
     )
     agent = MultiPathPlanGeneration(llm=llm)
     result = agent.run(query=args.task)
-    print("\n=== 最終出力 ===")
+    print("\n=== 최종 출력 ===")
     print(result)
 
 

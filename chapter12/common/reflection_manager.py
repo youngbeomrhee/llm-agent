@@ -17,23 +17,23 @@ settings = Settings()
 
 class ReflectionJudgment(BaseModel):
     needs_retry: bool = Field(
-        description="タスクの実行結果は適切だったと思いますか?あなたの判断を真偽値で示してください。"
+        description="태스크 실행 결과가 적절했다고 생각하십니까? 당신의 판단을 진위값으로 표시해 주세요."
     )
     confidence: float = Field(
-        description="あなたの判断に対するあなたの自信の度合いを0から1までの小数で示してください。"
+        description="당신의 판단에 대한 자신감 정도를 0부터 1까지의 소수로 표시해 주세요."
     )
     reasons: list[str] = Field(
-        description="タスクの実行結果の適切性とそれに対する自信度について、判断に至った理由を簡潔に列挙してください。"
+        description="태스크 실행 결과의 적절성과 그에 대한 자신감에 대해 판단에 이른 이유를 간결하게 나열해 주세요."
     )
 
 
 class Reflection(BaseModel):
-    id: str = Field(description="リフレクション内容に一意性を与えるためのID")
-    task: str = Field(description="ユーザーから与えられたタスクの内容")
+    id: str = Field(description="리플렉션 내용에 고유성을 부여하기 위한 ID")
+    task: str = Field(description="사용자로부터 주어진 태스크의 내용")
     reflection: str = Field(
-        description="このタスクに取り組んだ際のあなたの思考プロセスを振り返ってください。何か改善できる点はありましたか? 次に同様のタスクに取り組む際に、より良い結果を出すための教訓を2〜3文程度で簡潔に述べてください。"
+        description="이 태스크에 대한 접근 시 당신의 사고 프로세스를 되돌아보세요. 개선할 수 있는 부분이 있었습니까? 다음에 유사한 태스크를 수행할 때, 더 나은 결과를 내기 위한 교훈을 2~3문장 정도로 간결하게 서술해 주세요."
     )
-    judgment: ReflectionJudgment = Field(description="リトライが必要かどうかの判定")
+    judgment: ReflectionJudgment = Field(description="재시도가 필요한지에 대한 판정")
 
 
 class ReflectionManager:
@@ -105,7 +105,7 @@ class ReflectionManager:
                 if i < len(reflection_ids)
             ]
         except Exception as e:
-            print(f"Error during reflection search: {e}")
+            print(f"리플렉션 검색 중 오류 발생: {e}")
             return []
 
 
@@ -116,19 +116,19 @@ class TaskReflector:
 
     def run(self, task: str, result: str) -> Reflection:
         prompt = ChatPromptTemplate.from_template(
-            "与えられたタスクの内容:\n{task}\n\n"
-            "タスクを実行した結果:\n{result}\n\n"
-            "あなたは高度な推論能力を持つAIエージェントです。上記のタスクを実行した結果を分析し、このタスクに対するあなたの取り組みが適切だったかどうかを内省してください。\n"
-            "以下の項目に沿って、リフレクションの内容を出力してください。\n\n"
-            "リフレクション:\n"
-            "このタスクに取り組んだ際のあなたの思考プロセスや方法を振り返ってください。何か改善できる点はありましたか?\n"
-            "次に同様のタスクに取り組む際に、より良い結果を出すための教訓を2〜3文程度で簡潔に述べてください。\n\n"
-            "判定:\n"
-            "- 結果の適切性: タスクの実行結果は適切だったと思いますか?あなたの判断を真偽値で示してください。\n"
-            "- 判定の自信度: 上記の判断に対するあなたの自信の度合いを0から1までの小数で示してください。\n"
-            "- 判定の理由: タスクの実行結果の適切性とそれに対する自信度について、判断に至った理由を簡潔に列挙してください。\n\n"
-            "出力は必ず日本語で行ってください。\n\n"
-            "Tips: Make sure to answer in the correct format."
+            "주어진 태스크 내용:\n{task}\n\n"
+            "태스크 실행 결과:\n{result}\n\n"
+            "당신은 고도의 추론 능력을 가진 AI 에이전트입니다. 위 태스크를 실행한 결과를 분석하고, 이 태스크에 대한 당신의 접근이 적절했는지 내성적으로 살펴보세요.\n"
+            "아래 항목에 따라 리플렉션 내용을 출력해 주세요.\n\n"
+            "리플렉션:\n"
+            "이 태스크에 대한 접근 시 당신의 사고 프로세스나 방법을 되돌아보세요. 개선할 수 있는 부분이 있었습니까?\n"
+            "다음에 유사한 태스크를 수행할 때, 더 나은 결과를 내기 위한 교훈을 2~3문장 정도로 간결하게 서술해 주세요.\n\n"
+            "판정:\n"
+            "- 결과의 적절성: 태스크 실행 결과가 적절했다고 생각하십니까? 당신의 판단을 진위값으로 표시해 주세요.\n"
+            "- 판정의 자신감: 위 판단에 대한 당신의 자신감 정도를 0부터 1까지의 소수로 표시해 주세요.\n"
+            "- 판정의 이유: 태스크 실행 결과의 적절성과 그에 대한 자신감에 대해 판단에 이른 이유를 간결하게 나열해 주세요.\n\n"
+            "출력은 반드시 한국어로 해주세요.\n\n"
+            "팁: 올바른 형식으로 답변해야 합니다."
         )
 
         chain = prompt | self.llm

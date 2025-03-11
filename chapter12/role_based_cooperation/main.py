@@ -13,30 +13,30 @@ from single_path_plan_generation.main import DecomposedTasks, QueryDecomposer
 
 
 class Role(BaseModel):
-    name: str = Field(..., description="役割の名前")
-    description: str = Field(..., description="役割の詳細な説明")
-    key_skills: list[str] = Field(..., description="この役割に必要な主要なスキルや属性")
+    name: str = Field(..., description="역할의 이름")
+    description: str = Field(..., description="역할에 대한 상세 설명")
+    key_skills: list[str] = Field(..., description="이 역할에 필요한 주요 스킬이나 속성")
 
 
 class Task(BaseModel):
-    description: str = Field(..., description="タスクの説明")
-    role: Role = Field(default=None, description="タスクに割り当てられた役割")
+    description: str = Field(..., description="태스크 설명")
+    role: Role = Field(default=None, description="태스크에 할당된 역할")
 
 
 class TasksWithRoles(BaseModel):
-    tasks: list[Task] = Field(..., description="役割が割り当てられたタスクのリスト")
+    tasks: list[Task] = Field(..., description="역할이 할당된 태스크 목록")
 
 
 class AgentState(BaseModel):
-    query: str = Field(..., description="ユーザーが入力したクエリ")
+    query: str = Field(..., description="사용자가 입력한 쿼리")
     tasks: list[Task] = Field(
-        default_factory=list, description="実行するタスクのリスト"
+        default_factory=list, description="실행할 태스크 목록"
     )
-    current_task_index: int = Field(default=0, description="現在実行中のタスクの番号")
+    current_task_index: int = Field(default=0, description="현재 실행 중인 태스크의 번호")
     results: Annotated[list[str], operator.add] = Field(
-        default_factory=list, description="実行済みタスクの結果リスト"
+        default_factory=list, description="실행 완료된 태스크의 결과 목록"
     )
-    final_report: str = Field(default="", description="最終的な出力結果")
+    final_report: str = Field(default="", description="최종 출력 결과")
 
 
 class Planner:
@@ -58,19 +58,19 @@ class RoleAssigner:
                 (
                     "system",
                     (
-                        "あなたは創造的な役割設計の専門家です。与えられたタスクに対して、ユニークで適切な役割を生成してください。"
+                        "당신은 창의적인 역할 설계 전문가입니다. 주어진 태스크에 대해 독특하고 적절한 역할을 생성해 주세요."
                     ),
                 ),
                 (
                     "human",
                     (
-                        "タスク:\n{tasks}\n\n"
-                        "これらのタスクに対して、以下の指示に従って役割を割り当ててください：\n"
-                        "1. 各タスクに対して、独自の創造的な役割を考案してください。既存の職業名や一般的な役割名にとらわれる必要はありません。\n"
-                        "2. 役割名は、そのタスクの本質を反映した魅力的で記憶に残るものにしてください。\n"
-                        "3. 各役割に対して、その役割がなぜそのタスクに最適なのかを説明する詳細な説明を提供してください。\n"
-                        "4. その役割が効果的にタスクを遂行するために必要な主要なスキルやアトリビュートを3つ挙げてください。\n\n"
-                        "創造性を発揮し、タスクの本質を捉えた革新的な役割を生成してください。"
+                        "태스크:\n{tasks}\n\n"
+                        "이러한 태스크에 대해 다음 지침에 따라 역할을 할당해 주세요:\n"
+                        "1. 각 태스크에 대해 독창적이고 창의적인 역할을 고안해 주세요. 기존 직업명이나 일반적인 역할명에 얽매일 필요는 없습니다.\n"
+                        "2. 역할명은 해당 태스크의 본질을 반영한 매력적이고 기억에 남는 것으로 지어주세요.\n"
+                        "3. 각 역할에 대해, 그 역할이 해당 태스크에 왜 최적인지 설명하는 상세한 설명을 제공해 주세요.\n"
+                        "4. 그 역할이 효과적으로 태스크를 수행하기 위해 필요한 주요 스킬이나 속성을 3가지 들어주세요.\n\n"
+                        "창의성을 발휘하여 태스크의 본질을 포착한 혁신적인 역할을 생성해 주세요."
                     ),
                 ),
             ],
@@ -95,15 +95,15 @@ class Executor:
                     (
                         "system",
                         (
-                            f"あなたは{task.role.name}です。\n"
-                            f"説明: {task.role.description}\n"
-                            f"主要なスキル: {', '.join(task.role.key_skills)}\n"
-                            "あなたの役割に基づいて、与えられたタスクを最高の能力で遂行してください。"
+                            f"당신은 {task.role.name}입니다.\n"
+                            f"설명: {task.role.description}\n"
+                            f"주요 스킬: {', '.join(task.role.key_skills)}\n"
+                            "당신의 역할에 기반하여 주어진 태스크를 최고의 능력으로 수행해 주세요."
                         ),
                     ),
                     (
                         "human",
-                        f"以下のタスクを実行してください：\n\n{task.description}",
+                        f"다음 태스크를 실행해 주세요:\n\n{task.description}",
                     ),
                 ]
             }
@@ -121,22 +121,22 @@ class Reporter:
                 (
                     "system",
                     (
-                        "あなたは総合的なレポート作成の専門家です。複数の情報源からの結果を統合し、洞察力に富んだ包括的なレポートを作成する能力があります。"
+                        "당신은 종합적인 보고서 작성 전문가입니다. 여러 정보 소스의 결과를 통합하고, 통찰력 있는 포괄적인 보고서를 작성하는 능력이 있습니다."
                     ),
                 ),
                 (
                     "human",
                     (
-                        "タスク: 以下の情報に基づいて、包括的で一貫性のある回答を作成してください。\n"
-                        "要件:\n"
-                        "1. 提供されたすべての情報を統合し、よく構成された回答にしてください。\n"
-                        "2. 回答は元のクエリに直接応える形にしてください。\n"
-                        "3. 各情報の重要なポイントや発見を含めてください。\n"
-                        "4. 最後に結論や要約を提供してください。\n"
-                        "5. 回答は詳細でありながら簡潔にし、250〜300語程度を目指してください。\n"
-                        "6. 回答は日本語で行ってください。\n\n"
-                        "ユーザーの依頼: {query}\n\n"
-                        "収集した情報:\n{results}"
+                        "태스크: 다음 정보를 바탕으로 포괄적이고 일관성 있는 답변을 작성해 주세요.\n"
+                        "요구사항:\n"
+                        "1. 제공된 모든 정보를 통합하여 잘 구성된 답변을 만들어주세요.\n"
+                        "2. 답변은 원래 쿼리에 직접 응답하는 형태로 작성해 주세요.\n"
+                        "3. 각 정보의 중요 포인트나 발견 사항을 포함해 주세요.\n"
+                        "4. 마지막에 결론이나 요약을 제공해 주세요.\n"
+                        "5. 답변은 상세하면서도 간결하게 작성하고, 250~300단어 정도를 목표로 해주세요.\n"
+                        "6. 답변은 한국어로 작성해 주세요.\n\n"
+                        "사용자 요청: {query}\n\n"
+                        "수집한 정보:\n{results}"
                     ),
                 ),
             ],
@@ -216,9 +216,9 @@ def main():
 
     settings = Settings()
     parser = argparse.ArgumentParser(
-        description="RoleBasedCooperationを使用してタスクを実行します"
+        description="RoleBasedCooperation을 사용하여 태스크를 실행합니다"
     )
-    parser.add_argument("--task", type=str, required=True, help="実行するタスク")
+    parser.add_argument("--task", type=str, required=True, help="실행할 태스크")
     args = parser.parse_args()
 
     llm = ChatOpenAI(

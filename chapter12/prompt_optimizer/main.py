@@ -5,12 +5,12 @@ from pydantic import BaseModel, Field
 
 
 class OptimizedGoal(BaseModel):
-    description: str = Field(..., description="目標の説明")
-    metrics: str = Field(..., description="目標の達成度を測定する方法")
+    description: str = Field(..., description="목표의 설명")
+    metrics: str = Field(..., description="목표의 달성도를 측정하는 방법")
 
     @property
     def text(self) -> str:
-        return f"{self.description}(測定基準: {self.metrics})"
+        return f"{self.description}(측정 기준: {self.metrics})"
 
 
 class PromptOptimizer:
@@ -19,20 +19,20 @@ class PromptOptimizer:
 
     def run(self, query: str) -> OptimizedGoal:
         prompt = ChatPromptTemplate.from_template(
-            "あなたは目標設定の専門家です。以下の目標をSMART原則（Specific: 具体的、Measurable: 測定可能、Achievable: 達成可能、Relevant: 関連性が高い、Time-bound: 期限がある）に基づいて最適化してください。\n\n"
-            "元の目標:\n"
+            "당신은 목표 설정 전문가입니다. 아래의 목표를 SMART 원칙(Specific: 구체적, Measurable: 측정 가능, Achievable: 달성 가능, Relevant: 관련성이 높은, Time-bound: 기한이 있는)에 기반하여 최적화해 주세요.\n\n"
+            "원래 목표:\n"
             "{query}\n\n"
-            "指示:\n"
-            "1. 元の目標を分析し、不足している要素や改善点を特定してください。\n"
-            "2. あなたが実行可能な行動は以下の行動だけです。\n"
-            "   - インターネットを利用して、目標を達成するための調査を行う。\n"
-            "   - ユーザーのためのレポートを生成する。\n"
-            "3. SMART原則の各要素を考慮しながら、目標を具体的かつ詳細に記載してください。\n"
-            "   - 一切抽象的な表現を含んではいけません。\n"
-            "   - 必ず全ての単語が実行可能かつ具体的であることを確認してください。\n"
-            "4. 目標の達成度を測定する方法を具体的かつ詳細に記載してください。\n"
-            "5. 元の目標で期限が指定されていない場合は、期限を考慮する必要はありません。\n"
-            "6. REMEMBER: 決して2.以外の行動を取ってはいけません。"
+            "지시 사항:\n"
+            "1. 원래 목표를 분석하고, 부족한 요소나 개선점을 파악해 주세요.\n"
+            "2. 당신이 실행할 수 있는 행동은 다음과 같습니다.\n"
+            "   - 인터넷을 이용하여 목표 달성을 위한 조사를 수행한다.\n"
+            "   - 사용자를 위한 보고서를 생성한다.\n"
+            "3. SMART 원칙의 각 요소를 고려하면서 목표를 구체적이고 상세하게 기술해 주세요.\n"
+            "   - 절대 추상적인 표현을 포함해서는 안 됩니다.\n"
+            "   - 반드시 모든 단어가 실행 가능하고 구체적인지 확인해 주세요.\n"
+            "4. 목표의 달성도를 측정하는 방법을 구체적이고 상세하게 기술해 주세요.\n"
+            "5. 원래 목표에서 기한이 지정되지 않은 경우에는 기한을 고려할 필요가 없습니다.\n"
+            "6. 주의: 절대로 2번 이외의 행동을 취해서는 안 됩니다."
         )
         chain = prompt | self.llm.with_structured_output(OptimizedGoal)
         return chain.invoke({"query": query})
@@ -46,9 +46,9 @@ def main():
     settings = Settings()
 
     parser = argparse.ArgumentParser(
-        description="PromptOptimizerを利用して、生成された目標のリストを最適化します"
+        description="PromptOptimizer를 이용하여 생성된 목표 리스트를 최적화합니다"
     )
-    parser.add_argument("--task", type=str, required=True, help="実行するタスク")
+    parser.add_argument("--task", type=str, required=True, help="실행할 태스크")
     args = parser.parse_args()
 
     llm = ChatOpenAI(

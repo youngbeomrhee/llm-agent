@@ -22,7 +22,7 @@ def format_reflections(reflections: list[Reflection]) -> str:
             for i, r in enumerate(reflections)
         )
         if reflections
-        else "No relevant past reflections."
+        else "과거 관련 리플렉션이 없습니다."
     )
 
 
@@ -31,26 +31,26 @@ class DecomposedTasks(BaseModel):
         default_factory=list,
         min_items=3,
         max_items=5,
-        description="3~5個に分解されたタスク",
+        description="3~5개로 분해된 태스크",
     )
 
 
 class ReflectiveAgentState(BaseModel):
-    query: str = Field(..., description="ユーザーが最初に入力したクエリ")
-    optimized_goal: str = Field(default="", description="最適化された目標")
+    query: str = Field(..., description="사용자가 처음에 입력한 쿼리")
+    optimized_goal: str = Field(default="", description="최적화된 목표")
     optimized_response: str = Field(
-        default="", description="最適化されたレスポンス定義"
+        default="", description="최적화된 응답 정의"
     )
-    tasks: list[str] = Field(default_factory=list, description="実行するタスクのリスト")
-    current_task_index: int = Field(default=0, description="現在実行中のタスクの番号")
+    tasks: list[str] = Field(default_factory=list, description="실행할 태스크 목록")
+    current_task_index: int = Field(default=0, description="현재 실행 중인 태스크 번호")
     results: Annotated[list[str], operator.add] = Field(
-        default_factory=list, description="実行済みタスクの結果リスト"
+        default_factory=list, description="실행 완료된 태스크 결과 목록"
     )
     reflection_ids: Annotated[list[str], operator.add] = Field(
-        default_factory=list, description="リフレクション結果のIDリスト"
+        default_factory=list, description="리플렉션 결과의 ID 목록"
     )
-    final_output: str = Field(default="", description="最終的な出力結果")
-    retry_count: int = Field(default=0, description="タスクの再試行回数")
+    final_output: str = Field(default="", description="최종 출력 결과")
+    retry_count: int = Field(default=0, description="태스크 재시도 횟수")
 
 
 class ReflectiveGoalCreator:
@@ -64,7 +64,7 @@ class ReflectiveGoalCreator:
         relevant_reflections = self.reflection_manager.get_relevant_reflections(query)
         reflection_text = format_reflections(relevant_reflections)
 
-        query = f"{query}\n\n目標設定する際に以下の過去のふりかえりを考慮すること:\n{reflection_text}"
+        query = f"{query}\n\n목표 설정 시 다음의 과거 회고를 고려할 것:\n{reflection_text}"
         goal: Goal = self.passive_goal_creator.run(query=query)
         optimized_goal: OptimizedGoal = self.prompt_optimizer.run(query=goal.text)
         return optimized_goal.text
@@ -80,7 +80,7 @@ class ReflectiveResponseOptimizer:
         relevant_reflections = self.reflection_manager.get_relevant_reflections(query)
         reflection_text = format_reflections(relevant_reflections)
 
-        query = f"{query}\n\nレスポンス最適化に以下の過去のふりかえりを考慮すること:\n{reflection_text}"
+        query = f"{query}\n\n응답 최적화에 다음의 과거 회고를 고려할 것:\n{reflection_text}"
         optimized_response: str = self.response_optimizer.run(query=query)
         return optimized_response
 
@@ -97,15 +97,15 @@ class QueryDecomposer:
         prompt = ChatPromptTemplate.from_template(
             f"CURRENT_DATE: {self.current_date}\n"
             "-----\n"
-            "タスク: 与えられた目標を具体的で実行可能なタスクに分解してください。\n"
-            "要件:\n"
-            "1. 以下の行動だけで目標を達成すること。決して指定された以外の行動をとらないこと。\n"
-            "   - インターネットを利用して、目標を達成するための調査を行う。\n"
-            "2. 各タスクは具体的かつ詳細に記載されており、単独で実行ならびに検証可能な情報を含めること。一切抽象的な表現を含まないこと。\n"
-            "3. タスクは実行可能な順序でリスト化すること。\n"
-            "4. タスクは日本語で出力すること。\n"
-            "5. タスクを作成する際に以下の過去のふりかえりを考慮すること:\n{reflections}\n\n"
-            "目標: {query}"
+            "태스크: 주어진 목표를 구체적이고 실행 가능한 태스크로 분해해 주세요.\n"
+            "요건:\n"
+            "1. 다음 행동만으로 목표를 달성할 것. 절대 지정된 것 외의 행동을 취하지 말 것.\n"
+            "   - 인터넷을 이용하여 목표 달성을 위한 조사를 수행한다.\n"
+            "2. 각 태스크는 구체적이고 상세하게 작성되어 있으며, 독립적으로 실행 및 검증 가능한 정보를 포함할 것. 추상적인 표현을 전혀 포함하지 않을 것.\n"
+            "3. 태스크는 실행 가능한 순서로 나열할 것.\n"
+            "4. 태스크는 한국어로 출력할 것.\n"
+            "5. 태스크를 작성할 때 다음의 과거 회고를 고려할 것:\n{reflections}\n\n"
+            "목표: {query}"
         )
         chain = prompt | self.llm
         tasks = chain.invoke({"query": query, "reflections": reflection_text})
@@ -130,13 +130,13 @@ class TaskExecutor:
                         "human",
                         f"CURRENT_DATE: {self.current_date}\n"
                         "-----\n"
-                        f"次のタスクを実行し、詳細な回答を提供してください。\n\nタスク: {task}\n\n"
-                        "要件:\n"
-                        "1. 必要に応じて提供されたツールを使用すること。\n"
-                        "2. 実行において徹底的かつ包括的であること。\n"
-                        "3. 可能な限り具体的な事実やデータを提供すること。\n"
-                        "4. 発見事項を明確に要約すること。\n"
-                        f"5. 以下の過去のふりかえりを考慮すること:\n{reflection_text}\n",
+                        f"다음 태스크를 실행하고 상세한 답변을 제공해 주세요.\n\n태스크: {task}\n\n"
+                        "요건:\n"
+                        "1. 필요에 따라 제공된 도구를 사용할 것.\n"
+                        "2. 실행 시 철저하고 포괄적일 것.\n"
+                        "3. 가능한 한 구체적인 사실과 데이터를 제공할 것.\n"
+                        "4. 발견 사항을 명확하게 요약할 것.\n"
+                        f"5. 다음의 과거 회고를 고려할 것:\n{reflection_text}\n",
                     )
                 ]
             }
@@ -161,18 +161,18 @@ class ResultAggregator:
             self.reflection_manager.get_reflection(rid) for rid in reflection_ids
         ]
         prompt = ChatPromptTemplate.from_template(
-            "与えられた目標:\n{query}\n\n"
-            "調査結果:\n{results}\n\n"
-            "与えられた目標に対し、調査結果を用いて、以下の指示に基づいてレスポンスを生成してください。\n"
+            "주어진 목표:\n{query}\n\n"
+            "조사 결과:\n{results}\n\n"
+            "주어진 목표에 대해 조사 결과를 이용하여 다음 지시에 기반한 응답을 생성해 주세요.\n"
             "{response_definition}\n\n"
-            "過去のふりかえりを考慮すること:\n{reflection_text}\n"
+            "과거 회고를 고려할 것:\n{reflection_text}\n"
         )
         chain = prompt | self.llm | StrOutputParser()
         return chain.invoke(
             {
                 "query": query,
                 "results": "\n\n".join(
-                    f"Info {i+1}:\n{result}" for i, result in enumerate(results)
+                    f"정보 {i+1}:\n{result}" for i, result in enumerate(results)
                 ),
                 "response_definition": response_definition,
                 "reflection_text": format_reflections(relevant_reflections),
@@ -292,7 +292,7 @@ class ReflectiveAgent:
     def run(self, query: str) -> str:
         initial_state = ReflectiveAgentState(query=query)
         final_state = self.graph.invoke(initial_state, {"recursion_limit": 1000})
-        return final_state.get("final_output", "エラー: 出力に失敗しました。")
+        return final_state.get("final_output", "오류: 출력에 실패했습니다.")
 
 
 def main():
@@ -303,9 +303,9 @@ def main():
     settings = Settings()
 
     parser = argparse.ArgumentParser(
-        description="ReflectiveAgentを使用してタスクを実行します（Self-reflection）"
+        description="ReflectiveAgent를 사용해 태스크를 실행합니다(Self-reflection)"
     )
-    parser.add_argument("--task", type=str, required=True, help="実行するタスク")
+    parser.add_argument("--task", type=str, required=True, help="실행할 태스크")
     args = parser.parse_args()
 
     llm = ChatOpenAI(

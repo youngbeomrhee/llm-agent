@@ -19,22 +19,22 @@ class DecomposedTasks(BaseModel):
         default_factory=list,
         min_items=3,
         max_items=5,
-        description="3~5個に分解されたタスク",
+        description="3~5개로 분해된 태스크",
     )
 
 
 class SinglePathPlanGenerationState(BaseModel):
-    query: str = Field(..., description="ユーザーが入力したクエリ")
-    optimized_goal: str = Field(default="", description="最適化された目標")
+    query: str = Field(..., description="사용자가 입력한 쿼리")
+    optimized_goal: str = Field(default="", description="최적화된 목표")
     optimized_response: str = Field(
-        default="", description="最適化されたレスポンス定義"
+        default="", description="최적화된 응답 정의"
     )
-    tasks: list[str] = Field(default_factory=list, description="実行するタスクのリスト")
-    current_task_index: int = Field(default=0, description="現在実行中のタスクの番号")
+    tasks: list[str] = Field(default_factory=list, description="실행할 태스크 리스트")
+    current_task_index: int = Field(default=0, description="현재 실행 중인 태스크 번호")
     results: Annotated[list[str], operator.add] = Field(
-        default_factory=list, description="実行済みタスクの結果リスト"
+        default_factory=list, description="실행 완료된 태스크 결과 리스트"
     )
-    final_output: str = Field(default="", description="最終的な出力結果")
+    final_output: str = Field(default="", description="최종 출력 결과")
 
 
 class QueryDecomposer:
@@ -46,14 +46,14 @@ class QueryDecomposer:
         prompt = ChatPromptTemplate.from_template(
             f"CURRENT_DATE: {self.current_date}\n"
             "-----\n"
-            "タスク: 与えられた目標を具体的で実行可能なタスクに分解してください。\n"
-            "要件:\n"
-            "1. 以下の行動だけで目標を達成すること。決して指定された以外の行動をとらないこと。\n"
-            "   - インターネットを利用して、目標を達成するための調査を行う。\n"
-            "2. 各タスクは具体的かつ詳細に記載されており、単独で実行ならびに検証可能な情報を含めること。一切抽象的な表現を含まないこと。\n"
-            "3. タスクは実行可能な順序でリスト化すること。\n"
-            "4. タスクは日本語で出力すること。\n"
-            "目標: {query}"
+            "태스크: 주어진 목표를 구체적이고 실행 가능한 태스크로 분해해 주세요.\n"
+            "요건:\n"
+            "1. 다음 행동만으로 목표를 달성할 것. 절대 지정된 이외의 행동을 취하지 말 것.\n"
+            "   - 인터넷을 이용하여 목표 달성을 위한 조사를 수행한다.\n"
+            "2. 각 태스크는 구체적이고 상세하게 기재하며, 단독으로 실행 및 검증 가능한 정보를 포함할 것. 추상적인 표현을 일절 포함하지 말 것.\n"
+            "3. 태스크는 실행 가능한 순서로 리스트화할 것.\n"
+            "4. 태스크는 한국어로 출력할 것.\n"
+            "목표: {query}"
         )
         chain = prompt | self.llm.with_structured_output(DecomposedTasks)
         return chain.invoke({"query": query})
@@ -72,13 +72,13 @@ class TaskExecutor:
                     (
                         "human",
                         (
-                            "次のタスクを実行し、詳細な回答を提供してください。\n\n"
-                            f"タスク: {task}\n\n"
-                            "要件:\n"
-                            "1. 必要に応じて提供されたツールを使用してください。\n"
-                            "2. 実行は徹底的かつ包括的に行ってください。\n"
-                            "3. 可能な限り具体的な事実やデータを提供してください。\n"
-                            "4. 発見した内容を明確に要約してください。\n"
+                            "다음 태스크를 실행하고 상세한 답변을 제공해 주세요.\n\n"
+                            f"태스크: {task}\n\n"
+                            "요건:\n"
+                            "1. 필요에 따라 제공된 도구를 사용하세요.\n"
+                            "2. 실행은 철저하고 포괄적으로 수행하세요.\n"
+                            "3. 가능한 한 구체적인 사실이나 데이터를 제공하세요.\n"
+                            "4. 발견한 내용을 명확하게 요약하세요.\n"
                         ),
                     )
                 ]
@@ -93,9 +93,9 @@ class ResultAggregator:
 
     def run(self, query: str, response_definition: str, results: list[str]) -> str:
         prompt = ChatPromptTemplate.from_template(
-            "与えられた目標:\n{query}\n\n"
-            "調査結果:\n{results}\n\n"
-            "与えられた目標に対し、調査結果を用いて、以下の指示に基づいてレスポンスを生成してください。\n"
+            "주어진 목표:\n{query}\n\n"
+            "조사 결과:\n{results}\n\n"
+            "주어진 목표에 대해 조사 결과를 활용하여 다음 지시에 기반한 응답을 생성해 주세요.\n"
             "{response_definition}"
         )
         results_str = "\n\n".join(
@@ -139,10 +139,10 @@ class SinglePathPlanGeneration:
         return graph.compile()
 
     def _goal_setting(self, state: SinglePathPlanGenerationState) -> dict[str, Any]:
-        # プロンプト最適化
+        # 프롬프트 최적화
         goal: Goal = self.passive_goal_creator.run(query=state.query)
         optimized_goal: OptimizedGoal = self.prompt_optimizer.run(query=goal.text)
-        # レスポンス最適化
+        # 응답 최적화
         optimized_response: str = self.response_optimizer.run(query=optimized_goal.text)
         return {
             "optimized_goal": optimized_goal.text,
@@ -176,7 +176,7 @@ class SinglePathPlanGeneration:
     def run(self, query: str) -> str:
         initial_state = SinglePathPlanGenerationState(query=query)
         final_state = self.graph.invoke(initial_state, {"recursion_limit": 1000})
-        return final_state.get("final_output", "Failed to generate a final response.")
+        return final_state.get("final_output", "최종 응답을 생성하지 못했습니다.")
 
 
 def main():
@@ -187,9 +187,9 @@ def main():
     settings = Settings()
 
     parser = argparse.ArgumentParser(
-        description="SinglePathPlanGenerationを使用してタスクを実行します"
+        description="SinglePathPlanGeneration을 사용하여 태스크를 실행합니다"
     )
-    parser.add_argument("--task", type=str, required=True, help="実行するタスク")
+    parser.add_argument("--task", type=str, required=True, help="실행할 태스크")
     args = parser.parse_args()
 
     llm = ChatOpenAI(
