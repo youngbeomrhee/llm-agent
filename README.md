@@ -41,9 +41,9 @@ Google Colab에서 위 오류를 만난 후 `!pip install httpx==0.27.2`와 같�
 - Google Colab의 "런타임"에서 "세션 재시작"을 실행
 - "런타임 연결 해제 및 삭제"를 실행하고 패키지 설치부터 다시 시작
 
-### "7.4 Ragas를 활용한 합성 테스트 데이터 생성"에서의 RateLimitError
+### '7.4 Ragas를 활용한 합성 테스트 데이터 생성'에서의 RateLimitError
 
-"7.4 Ragas를 활용한 합성 테스트 데이터 생성"에서 gpt-4o를 사용할 때 OpenAI API의 Usage tier에 따라 RateLimitError가 발생할 수 있습니다.
+'7.4 Ragas를 활용한 합성 테스트 데이터 생성'에서 gpt-4o를 사용할 때 OpenAI API의 Usage tier에 따라 RateLimitError가 발생할 수 있습니다.
 
 OpenAI API의 Usage tier에 관한 자세한 내용은 공식 문서의 다음 페이지를 참조하세요.
 
@@ -56,3 +56,17 @@ https://platform.openai.com/docs/guides/rate-limits/usage-tiers
 2. 과금 등을 통해 Tier 업그레이드
    - Tier 2에서는 RateLimitError가 발생하지 않는 것을 확인했습니다(2024년 10월 31일 기준)
 
+#### 2025/3/15 추가
+
+LangChain 문서의 증가로 인해, gpt-4o-mini를 사용하더라도 Tier 1에서는 오류가 발생한다는 보고가 있습니다.
+
+이 경우, GitHub에서 문서를 로드하는 부분에서 다음과 같이 작동이 확인된 버전인 `langchain==0.2.13`을 지정하도록 하세요.
+
+```python
+loader = GitLoader(
+    clone_url="https://github.com/langchain-ai/langchain",
+    repo_path="./langchain",
+    branch="langchain==0.2.13",
+    file_filter=file_filter,
+)
+```
