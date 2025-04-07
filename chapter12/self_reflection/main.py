@@ -22,7 +22,7 @@ def format_reflections(reflections: list[Reflection]) -> str:
             for i, r in enumerate(reflections)
         )
         if reflections
-        else "과거 관련 리플렉션이 없습니다."
+        else "No relevant past reflections."
     )
 
 
