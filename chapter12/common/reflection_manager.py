@@ -105,7 +105,7 @@ class ReflectionManager:
                 if i < len(reflection_ids)
             ]
         except Exception as e:
-            print(f"리플렉션 검색 중 오류 발생: {e}")
+            print(f"Error during reflection search: {e}")
             return []
 
 
