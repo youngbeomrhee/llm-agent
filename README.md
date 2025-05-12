@@ -1,6 +1,6 @@
-# LangChain과 LangGraph를 활용한 RAG·AI 에이전트 [실전] 입문(가제)
+# 랭체인과 랭그래프로 구현하는 RAG・AI 에이전트 실전 입문
 
-《LangChain과 LangGraph를 활용한 RAG·AI 에이전트 [실전] 입문(가제)》의 GitHub 저장소입니다.
+《랭체인과 랭그래프로 구현하는 RAG・AI 에이전트 실전 입문》의 GitHub 저장소입니다.
 
 ## 각 장의 소스 코드
 
