@@ -173,3 +173,7 @@ tmp/**/*
 # ただし、.gitkeepファイルは保持
 !tmp/**/.gitkeep
 !**/tmp/**/.gitkeep
+
+chroma_db/
+.DS_Store
+projector_data/
