@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # for Application
     openai_smart_model: str = "gpt-4o"
     openai_embedding_model: str = "text-embedding-3-small"
-    anthropic_smart_model: str = "claude-3-5-sonnet-20240620"
+    anthropic_smart_model: str = "claude-sonnet-4-20250514"
     temperature: float = 0.0
     default_reflection_db_path: str = "tmp/reflection_db.json"
 

@@ -111,7 +111,8 @@ class ReflectionManager:
 
 class TaskReflector:
     def __init__(self, llm: BaseChatModel, reflection_manager: ReflectionManager):
-        self.llm = llm.with_structured_output(Reflection)
+        # strict=False로 설정하여 더 유연한 파싱 허용
+        self.llm = llm.with_structured_output(Reflection, strict=False)
         self.reflection_manager = reflection_manager
 
     def run(self, task: str, result: str) -> Reflection:
@@ -124,11 +125,11 @@ class TaskReflector:
             "이 태스크에 대한 접근 시 당신의 사고 프로세스나 방법을 되돌아보세요. 개선할 수 있는 부분이 있었습니까?\n"
             "다음에 유사한 태스크를 수행할 때, 더 나은 결과를 내기 위한 교훈을 2~3문장 정도로 간결하게 서술하세요.\n\n"
             "판정:\n"
-            "- 결과의 적절성: 태스크 실행 결과가 적절했다고 생각하십니까? 당신의 판단을 진윗값으로 표시하세요.\n"
-            "- 판정의 자신감: 위 판단에 대한 당신의 자신감 정도를 0부터 1까지의 소수로 표시하세요.\n"
-            "- 판정의 이유: 태스크 실행 결과의 적절성과 그에 대한 자신감에 대해 판단에 이른 이유를 간결하게 나열하세요.\n\n"
+            "- 결과의 적절성(needs_retry): 태스크 실행 결과가 부적절하여 재시도가 필요한지 boolean 값으로 표시하세요.\n"
+            "- 판정의 자신감(confidence): 위 판단에 대한 당신의 자신감 정도를 0부터 1까지의 소수로 표시하세요.\n"
+            "- 판정의 이유(reasons): 태스크 실행 결과의 적절성과 그에 대한 자신감에 대해 판단에 이른 이유를 간결하게 나열하세요.\n\n"
             "반드시 한국어로 출력하세요.\n\n"
-            "Tips: Make sure to answer in the correct format."
+            "IMPORTANT: You MUST use the provided tool to respond. Do NOT output raw text or XML."
         )
 
         chain = prompt | self.llm
